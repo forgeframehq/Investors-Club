@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -18,6 +18,9 @@ loadWebFonts();
 
 export default function RootLayout() {
   const { ready, settings } = useStore();
+  // The teacher area is its own place: a teacher opening it never sees the student welcome steps.
+  const teacherArea = usePathname().startsWith('/teacher');
+  const welcoming = !settings.onboarded && !teacherArea;
 
   useEffect(() => {
     const update = () => {
@@ -42,7 +45,7 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       {/* The key remounts every screen when the accent changes, so all of them pick up the new colour. */}
       {/* While the welcome steps are showing, screen readers skip the app underneath them. */}
-      <View style={{ flex: 1 }} importantForAccessibility={settings.onboarded ? 'auto' : 'no-hide-descendants'}>
+      <View style={{ flex: 1 }} importantForAccessibility={welcoming ? 'no-hide-descendants' : 'auto'}>
       <Stack
         key={settings.accent ?? 'default'}
         screenOptions={{
@@ -66,7 +69,7 @@ export default function RootLayout() {
       </Stack>
       </View>
       {/* New students see the welcome steps on top of the app until they finish them. */}
-      {!settings.onboarded && <Welcome />}
+      {welcoming && <Welcome />}
       <OverlayHost />
     </>
   );

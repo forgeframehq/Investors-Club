@@ -6,7 +6,7 @@
 // The database tables create themselves on first use, so deploying needs no database commands.
 import { SCHOOLS } from '../../app/src/data/schools';
 import { STOCKS } from '../../app/src/data/stocks';
-import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, twelveHistory, type GetJson } from '../../app/src/lib/provider';
+import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, nextOpenText, twelveHistory, type GetJson } from '../../app/src/lib/provider';
 import { applyTrade, roundShares } from '../../app/src/lib/rules';
 import type { HistoryPoint, Holding, Markers, Progress, Quote, Trade } from '../../app/src/lib/types';
 
@@ -50,6 +50,8 @@ const SCHEMA = [
 // so a warm server pays one small read and a database that already has them is left alone.
 const MIGRATIONS = [
   ['ALTER TABLE quotes ADD COLUMN hi REAL', 'ALTER TABLE quotes ADD COLUMN lo REAL', 'ALTER TABLE quotes ADD COLUMN open REAL'],
+  // Class rules a teacher can set: stop all trading for now, or allow it only while the market is open.
+  ['ALTER TABLE classes ADD COLUMN paused INTEGER NOT NULL DEFAULT 0', 'ALTER TABLE classes ADD COLUMN hours_only INTEGER NOT NULL DEFAULT 0'],
 ];
 async function prepare(env: Env) {
   await env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql)));
@@ -210,7 +212,9 @@ async function warm(env: Env) {
 // ---------- classes ----------
 
 interface TeacherRow { id: string; login: string; name: string; school: string; salt: string; pass_hash: string; fails: number; fail_at: number }
-interface ClassRow { code: string; pub: string; name: string; owner: string; school: string; start_cash: number }
+interface ClassRow { code: string; pub: string; name: string; owner: string; school: string; start_cash: number; paused: number; hours_only: number }
+/** What the app needs to know about a class's trading rules. */
+const rules = (cls: ClassRow) => ({ paused: !!cls.paused, hours_only: !!cls.hours_only });
 interface StudentRow { id: string; class_code: string; name: string; cash: number; stamp: string; pin_hash: string | null; fails: number; removed: number; avatar: string }
 
 const cleanName = (text: unknown, max: number) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -391,6 +395,8 @@ async function route(req: Request, env: Env): Promise<Response> {
     const side = body.side === 'sell' ? 'sell' : 'buy';
     const shares = roundShares(Number(body.shares));
     if (!ALLOWED.has(symbol)) throw new Problem(404, 'That stock is not in the Investors Club list.');
+    if (cls.paused) throw new Problem(403, 'Your teacher has paused trading for this class. Your portfolio is safe. Try again later.');
+    if (cls.hours_only && !marketOpen() && !env.MOCK_MARKET) throw new Problem(403, `${nextOpenText()} Your class trades only while the market is open.`);
     const quote = (await getQuotes(env, [symbol], { single: true }))[symbol];
     if (!quote) throw new Problem(503, 'There is no price for this stock right now. Try again in a minute.');
     const before = await loadPortfolio(env, student, cls.start_cash);
@@ -414,7 +420,7 @@ async function route(req: Request, env: Env): Promise<Response> {
 
   if (path === '/leaderboard') {
     const { student, cls } = await studentFromToken(env, req);
-    return json({ class: { code: cls.code, name: cls.name }, standings: await standings(env, cls, student.id, false) });
+    return json({ class: { code: cls.code, name: cls.name, ...rules(cls) }, standings: await standings(env, cls, student.id, false) });
   }
 
   // ---- teachers ----
@@ -496,12 +502,19 @@ async function route(req: Request, env: Env): Promise<Response> {
 
     if (path === '/teacher/class' && !post) {
       const cls = await classOf(env, teacher, url.searchParams.get('code'));
-      return json({ class: { code: cls.code, name: cls.name, start_cash: cls.start_cash }, standings: await standings(env, cls, null, true) });
+      return json({ class: { code: cls.code, name: cls.name, start_cash: cls.start_cash, ...rules(cls) }, standings: await standings(env, cls, null, true) });
     }
     if (!post) throw new Problem(404, 'Not found.');
     const cls = await classOf(env, teacher, body.code);
     const inClass = 'student_id IN (SELECT id FROM students WHERE class_code = ?)';
 
+    if (path === '/teacher/update-class') {
+      const name = body.name === undefined ? cls.name : cleanName(body.name, 40);
+      if (name.length < 2) throw new Problem(400, 'Give the class a name.');
+      const flag = (v: unknown, was: number) => (v === undefined ? was : v ? 1 : 0);
+      await env.DB.prepare('UPDATE classes SET name = ?, paused = ?, hours_only = ? WHERE code = ?').bind(name, flag(body.paused, cls.paused), flag(body.hours_only, cls.hours_only), cls.code).run();
+      return json({ ok: true });
+    }
     if (path === '/teacher/restart') {
       await env.DB.batch([
         env.DB.prepare(`DELETE FROM holdings WHERE ${inClass}`).bind(cls.code),

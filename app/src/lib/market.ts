@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import { STOCKS } from '@/data/stocks';
 
-import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, twelveHistory } from './provider';
+import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, nextOpenText, twelveHistory } from './provider';
 import { commit, db, saveMarket, snapshot } from './store';
 import type { HistoryPoint, Markers, Quote } from './types';
 
@@ -17,7 +17,7 @@ const clean = (url: string) => url.trim().replace(/\/+$/, '');
 export const serverUrl = () => clean(db.cls?.server || db.teacher?.server || db.settings.server || BUILT_IN || sameOrigin);
 export type Source = 'server' | 'direct' | 'none';
 export const source = (): Source => (serverUrl() ? 'server' : db.settings.finnhubKey.trim() ? 'direct' : 'none');
-export { marketOpen };
+export { marketOpen, nextOpenText };
 
 /** Fetches JSON with a time limit and turns failures into a sentence a child can read. */
 export async function getJson(url: string, init?: RequestInit, ms = 12000): Promise<any> {

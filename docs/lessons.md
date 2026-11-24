@@ -58,3 +58,12 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
   bright ones from the dark theme (lime, yellow) were unreadable and were replaced.
 - **"Start over as a new student"** in Settings clears this device (`startOver` in the store) and shows the
   welcome steps again. It is how to demo a fresh login without clearing browser data.
+
+## 2026-11-24 — Teacher area, trading rules, APK on request
+
+- **Opening the same page two ways needs a way back.** The teacher's class page can be the first page loaded
+  (a shared link), so its back button falls back to `router.replace('/teacher')` when there is no history.
+- **Do not trigger a build by adding the trigger file.** The APK workflow runs when `.github/apk-build`
+  changes, and creating the file counts as a change, so it is only created when an APK is wanted.
+- **Bermuda and New York change their clocks on the same days**, so market hours are 10:30 am to 5 pm Bermuda
+  time all year and can be written as fixed text.

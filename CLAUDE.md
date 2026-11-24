@@ -10,9 +10,11 @@ This repo is the home of the app. It was moved here from `forgeframehq/apps` (fo
 ## How we work
 
 - Sudhi works from his phone. He does not run builds locally.
-- The loop: make the change → push to `main` → GitHub Actions builds the APK (about 20 minutes) → send him the
-  download link with what changed and what to check → he installs and reports back.
-- Builds are slow, so batch related changes into one push. Only changes under `app/` trigger a build.
+- Every push to `main` redeploys the website and class server on Cloudflare within a few minutes
+  (`https://investors-club.forgeframehq.workers.dev`; teachers use `/teacher`). That is where he looks first.
+- **The APK is built only when he asks for one.** To ask GitHub for it, create or change `.github/apk-build`
+  (any text, such as the version code) and push. It takes about 20 minutes; then send him the download link
+  with what changed and what to check.
 - The latest APK is always `releases/download/latest/InvestorsClub.apk`.
 - Tell him plainly what was tested and what was not. Nothing here runs on a real phone before he installs it.
 
@@ -37,6 +39,8 @@ cd ../tests && ./run-e2e.sh                                        # drives the 
 
 ## Conventions
 
+- **Two audiences, two places.** Students use the tabs. Teachers use the teacher area (`/teacher`,
+  `/teacher-class`), which has its own header (`ui/teacher-bar.tsx`) and never shows the student welcome steps.
 - **Local-first.** The app works with no account and no network, apart from prices. Classes are optional.
 - **Children use this.** No photos, no email addresses, no surnames: a student is a first name with a last
   initial, a PIN and a built-in picture. Do not add anything that collects more without asking Sudhi first.

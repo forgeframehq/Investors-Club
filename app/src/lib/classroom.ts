@@ -70,9 +70,9 @@ export async function tradeInClass(symbol: string, side: 'buy' | 'sell', shares:
   return j.trade as { price: number; shares: number };
 }
 
-export async function leaderboard(): Promise<{ className: string; standings: Standing[] }> {
+export async function leaderboard(): Promise<{ className: string; paused: boolean; hoursOnly: boolean; standings: Standing[] }> {
   const j = await mine('/leaderboard');
-  return { className: j.class.name, standings: j.standings };
+  return { className: j.class.name, paused: !!j.class.paused, hoursOnly: !!j.class.hours_only, standings: j.standings };
 }
 
 // ---------- teachers ----------
@@ -97,11 +97,14 @@ export async function teacherClasses(): Promise<ClassSummary[]> {
   return (await asTeacher('/teacher/classes')).classes;
 }
 export const createClass = (name: string, startCash: number): Promise<{ code: string; name: string }> => asTeacher('/teacher/classes', { name: name.trim(), start_cash: startCash });
-export async function teacherClass(code: string): Promise<{ code: string; name: string; startCash: number; students: StudentDetail[] }> {
+export interface TeacherClassView { code: string; name: string; startCash: number; paused: boolean; hoursOnly: boolean; students: StudentDetail[] }
+export async function teacherClass(code: string): Promise<TeacherClassView> {
   const j = await asTeacher(`/teacher/class?code=${encodeURIComponent(code)}`);
-  return { code: j.class.code, name: j.class.name, startCash: j.class.start_cash, students: j.standings };
+  return { code: j.class.code, name: j.class.name, startCash: j.class.start_cash, paused: !!j.class.paused, hoursOnly: !!j.class.hours_only, students: j.standings };
 }
 export const removeStudent = (code: string, id: string) => asTeacher('/teacher/remove', { code, student_id: id });
 export const resetPin = (code: string, id: string) => asTeacher('/teacher/reset-pin', { code, student_id: id });
+/** Changes a class's name or its trading rules. Leave out what should stay as it is. */
+export const updateClass = (code: string, change: { name?: string; paused?: boolean; hoursOnly?: boolean }) => asTeacher('/teacher/update-class', { code, name: change.name, paused: change.paused, hours_only: change.hoursOnly });
 export const restartClass = (code: string) => asTeacher('/teacher/restart', { code });
 export const deleteClass = (code: string) => asTeacher('/teacher/delete-class', { code });

@@ -1,4 +1,5 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 
@@ -8,7 +9,8 @@ import { money } from '@/lib/format';
 import { serverUrl } from '@/lib/market';
 import { useStore } from '@/lib/store';
 import type { ClassSummary } from '@/lib/types';
-import { Btn, C, Card, Chip, Delta, Empty, Field, Icon, Page, Row, TapCard, Txt } from '@/ui/kit';
+import { Btn, C, Card, Chip, Delta, Empty, Field, Icon, Page, Row, Stat, TapCard, Txt } from '@/ui/kit';
+import { TeacherBar } from '@/ui/teacher-bar';
 import { confirm, pick, prompt, toast } from '@/ui/overlay';
 
 const CASH = [1000, 10000, 100000];
@@ -82,6 +84,9 @@ export default function Teacher() {
   if (!teacher) {
     const isNew = mode === 'new';
     return (
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <TeacherBar />
       <Page>
         {!serverUrl() && <Card><Txt size={15}>Classes need a class server. Add its address under Settings, then Market data.</Txt></Card>}
         <Card>
@@ -103,11 +108,32 @@ export default function Teacher() {
           <Btn title={isNew ? 'Create account' : 'Sign in as teacher'} busy={busy} disabled={login.trim().length < 3 || password.length < 8 || (isNew && (name.trim().length < 2 || !school))} onPress={enter} />
           {isNew && <Txt size={12} color={C.muted}>Write your password down. There is no email on the account, so it cannot be sent to you if you forget it.</Txt>}
         </Card>
+        <Card>
+          <Txt size={16} bold>What you get as a teacher</Txt>
+          {['Any number of classes, each with its own join code', 'Every student\'s portfolio, holdings and trades', 'What each student has learned: lessons, words, flashcards, badges', 'Who has not traded or been active, and who has everything in one stock', 'Rules for the class: pause trading, or trade only in market hours', 'A spreadsheet of the class to download'].map((x) => (
+            <Row key={x} gap={10} style={{ alignItems: 'flex-start' }}>
+              <Icon name="checkmark-circle" size={18} color={C.accent} />
+              <Txt size={14} style={{ flex: 1 }}>{x}</Txt>
+            </Row>
+          ))}
+        </Card>
       </Page>
+      </View>
     );
   }
 
+  const site = serverUrl();
+  const copy = async (text: string, what: string) => {
+    await Clipboard.setStringAsync(text);
+    toast(`${what} copied`);
+  };
+  const total = (classes ?? []).reduce((sum, c) => sum + c.students, 0);
+  const overall = total ? (classes ?? []).reduce((sum, c) => sum + c.avgGainPct * c.students, 0) / total : 0;
+
   return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <Stack.Screen options={{ headerShown: false }} />
+    <TeacherBar />
     <Page>
       <Row>
         <View style={{ flex: 1 }}>
@@ -117,6 +143,19 @@ export default function Teacher() {
         </View>
         <Btn title="Sign out" kind="text" icon="log-out-outline" onPress={signOut} />
       </Row>
+
+      {!!classes?.length && (
+        <Card>
+          <Row gap={28} style={{ flexWrap: 'wrap' }}>
+            <Stat title="Classes" value={String(classes.length)} />
+            <Stat title="Students" value={String(total)} />
+            <View style={{ gap: 4 }}>
+              <Txt size={13} color={C.muted}>Average change, all students</Txt>
+              <Delta value={overall} size={16} />
+            </View>
+          </Row>
+        </Card>
+      )}
 
       <Txt size={18} bold>Your classes{classes ? ` (${classes.length})` : ''}</Txt>
       {!!error && <Txt size={14} color={C.bad}>{error}</Txt>}
@@ -143,6 +182,28 @@ export default function Teacher() {
         <Btn title={`Starting cash: ${money(cash, false)}`} kind="ghost" left icon="cash-outline" onPress={chooseCash} />
         <Btn title="Create class" busy={busy} disabled={className.trim().length < 2} onPress={create} />
       </Card>
+
+      {!!site && (
+        <Card>
+          <Txt size={18} bold>Links to share</Txt>
+          <Txt size={13} color={C.muted}>Students and teachers use different addresses.</Txt>
+          <Row>
+            <View style={{ flex: 1 }}>
+              <Txt size={14} bold>For students</Txt>
+              <Txt size={13} color={C.muted} lines={1}>{site}</Txt>
+            </View>
+            <Btn title="Copy student link" kind="ghost" icon="copy-outline" height={40} onPress={() => copy(site, 'Student link')} />
+          </Row>
+          <Row>
+            <View style={{ flex: 1 }}>
+              <Txt size={14} bold>For teachers</Txt>
+              <Txt size={13} color={C.muted} lines={1}>{site}/teacher</Txt>
+            </View>
+            <Btn title="Copy teacher link" kind="ghost" icon="copy-outline" height={40} onPress={() => copy(`${site}/teacher`, 'Teacher link')} />
+          </Row>
+        </Card>
+      )}
     </Page>
+    </View>
   );
 }

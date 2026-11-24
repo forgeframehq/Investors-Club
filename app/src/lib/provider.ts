@@ -61,8 +61,26 @@ export async function twelveHistory(get: GetJson, key: string, symbol: string): 
   return points.reverse();
 }
 
-/** True during US trading hours (9:30 am to 4 pm New York time, Monday to Friday). Does not know about holidays. */
+// Days the US stock markets (NYSE and Nasdaq) are shut, in New York dates. Update this list each year.
+const HOLIDAYS = new Set([
+  '2026-11-26', '2026-12-25',
+  '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18', '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24',
+]);
+/** The date in New York as YYYY-MM-DD. */
+function newYorkDay(now: Date): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * True during US trading hours: 9:30 am to 4 pm New York time, Monday to Friday, except market holidays.
+ * In Bermuda that is 10:30 am to 5 pm all year, because Bermuda changes its clocks on the same days.
+ */
 export function marketOpen(now = new Date()): boolean {
+  if (HOLIDAYS.has(newYorkDay(now))) return false;
   try {
     const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(now);
     const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
@@ -74,4 +92,17 @@ export function marketOpen(now = new Date()): boolean {
     const minutes = now.getUTCHours() * 60 + now.getUTCMinutes();
     return day >= 1 && day <= 5 && minutes >= 870 && minutes < 1260; // winter hours; an hour out in summer
   }
+}
+
+/** A sentence saying when the market next opens, in Bermuda time. Checked in ten-minute steps for up to a week. */
+export function nextOpenText(now = new Date()): string {
+  if (marketOpen(now)) return 'The market is open until 5 pm Bermuda time.';
+  for (let t = now.getTime(), end = t + 8 * 86400000; t < end; t += 600000) {
+    const at = new Date(t);
+    if (!marketOpen(at)) continue;
+    const days = Math.round((Date.parse(newYorkDay(at)) - Date.parse(newYorkDay(now))) / 86400000);
+    const day = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `on ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(`${newYorkDay(at)}T12:00:00Z`).getUTCDay()]}`;
+    return `The market is closed. It opens ${day} at 10:30 am Bermuda time.`;
+  }
+  return 'The market is closed.';
 }

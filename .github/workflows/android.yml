@@ -1,13 +1,14 @@
 # Builds an installable Android APK on GitHub's servers, so no computer is needed.
-# Run it from the repo's Actions tab ("Run workflow"), or just push a change under app/.
 # The newest APK is attached to the "Investors Club (latest build)" release, and to the finished run's "Artifacts".
 name: Android APK
 
+# It does NOT run on every push. To ask for a new APK, change the number in .github/apk-build and push,
+# or use "Run workflow" on the Actions tab.
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['app/**', '.github/workflows/android.yml']
+    paths: ['.github/apk-build']
 
 permissions:
   contents: write  # lets the job attach the APK to a release

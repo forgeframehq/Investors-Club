@@ -154,6 +154,9 @@ function driver(p, errs) {
   const sp = await ctx.newPage();
   await sp.setViewport({ width: 412, height: 915, deviceScaleFactor: 2 });
   const s = driver(sp, errs);
+  await s.go('/teacher');
+  t = await s.text();
+  check(t.includes('Teacher area') && t.includes('What you get as a teacher') && !t.includes('Welcome to Investors Club'), 'the teacher address opens the teacher area, without the student welcome steps');
   await s.go('/');
   check(await s.tap('Get started') && await s.type('Your first name', 'Sam') && await s.tap('Picture Gamer') && await s.tap('Next') && await s.tap('Next') && await s.tap('Class portfolio'), 'a new student chooses the class portfolio in the welcome steps'); await sleep(600); await s.shot('16-join');
   check((await s.text()).includes('Join your class'), 'choosing the class portfolio opens the join form');
@@ -177,9 +180,13 @@ function driver(p, errs) {
   await go('/teacher'); await sleep(900); await shot('19-teacher-classes');
   t = await text();
   check(t.includes('P6 Blue') && t.includes('2 students') && t.includes('class average'), 'the teacher sees the class with its size and average');
+  check(t.includes('Teacher area') && t.includes('Warwick Academy') && t.includes('Links to share'), 'the teacher area has its own header and the links to share');
   check(await tap('Class P6 Blue'), 'open the class'); await sleep(900); await shot('19-teacher-class');
   t = await text();
-  check(t.includes('Sam T') && t.includes('Alex R') && t.includes('Students (2)') && t.includes('Class summary') && t.includes('Most held'), 'the class page shows a summary and both students');
+  check(t.includes('Class summary') && t.includes('Most held') && t.includes('Worth a word') && t.includes('2 students'), 'the class overview shows a summary, popular stocks and who needs a word');
+  check(await tap('Students'), 'open the students tab'); await sleep(400);
+  t = await text();
+  check(t.includes('Sam T') && t.includes('Alex R') && t.includes('Download spreadsheet'), 'the students tab lists both students and offers a spreadsheet');
   check(await tap('Student Sam T'), 'open a student'); await shot('19-teacher-student');
   t = await text();
   check(/bought .* of NTB/.test(t) && t.includes('Learning') && t.includes('Butterfield Bank'), "teacher sees the student's holdings, trades and learning");
@@ -187,6 +194,12 @@ function driver(p, errs) {
   await p.setViewport({ width: 1366, height: 800, deviceScaleFactor: 1 }); await sleep(600); await shot('19-teacher-laptop');
   check((await text()).includes('LAST ACTIVE'), 'on a laptop the students are shown as a table');
   await p.setViewport({ width: 412, height: 915, deviceScaleFactor: 2 }); await sleep(300);
+  check(await tap('Activity'), 'open the activity tab'); await sleep(300); await shot('19-teacher-activity');
+  check(/Sam T bought .* of Butterfield Bank/.test(await text()), 'the activity tab lists the class\'s latest trades');
+  check(await tap('Settings') && await tap('Pause trading'), 'pause trading for the class'); await sleep(900); await shot('19-teacher-settings');
+  check(/paused trading/.test((await api('/trade', { symbol: 'DIS', side: 'buy', shares: 1 }, other.token)).error || ''), 'a paused class cannot trade');
+  check(await tap('Pause trading'), 'turn trading back on'); await sleep(900);
+  check(!!(await api('/trade', { symbol: 'DIS', side: 'buy', shares: 1 }, other.token)).trade, 'trading works again once it is turned back on');
   const cls = await api(`/teacher/class?code=${code}`, null, teacherToken);
   const sam = cls.standings.find((x) => x.name === 'Sam T');
   check(sam && sam.holdings[0].symbol === 'NTB' && Math.abs(sam.cash - 8000) < 1, 'the class server holds the trade');

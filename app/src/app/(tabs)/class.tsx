@@ -27,6 +27,7 @@ export default function ClassTab() {
   const [error, setError] = useState('');
   const [rows, setRows] = useState<Standing[] | null>(null);
   const [table, setTable] = useState<SchoolStanding[] | null>(null);
+  const [rule, setRule] = useState('');
 
   const refresh = useCallback(async () => {
     if (!serverUrl()) return;
@@ -34,7 +35,9 @@ export default function ClassTab() {
     try {
       if (cls) {
         await syncPortfolio();
-        setRows((await leaderboard()).standings);
+        const board = await leaderboard();
+        setRows(board.standings);
+        setRule(board.paused ? 'Your teacher has paused trading for now.' : board.hoursOnly ? 'Your class trades only while the market is open: 10:30 am to 5 pm, Monday to Friday.' : '');
       }
       setTable(await schools());
       setError('');
@@ -130,6 +133,12 @@ export default function ClassTab() {
               <Txt size={13} color={C.muted}>Signed in as {cls.name}</Txt>
               <Txt size={22} bold>{cls.className}</Txt>
               {!!cls.school && <Txt size={14} color={C.muted}>{cls.school}</Txt>}
+              {!!rule && (
+                <Row gap={8}>
+                  <Icon name="information-circle-outline" size={18} color={C.warm} />
+                  <Txt size={14} style={{ flex: 1 }}>{rule}</Txt>
+                </Row>
+              )}
               {me >= 0 && rows && (
                 <Row gap={8}>
                   <Icon name="podium-outline" color={C.accent} />

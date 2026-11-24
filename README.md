@@ -35,12 +35,27 @@ marker shows the real number, a plain word ("Giant", "Calm", "Steady payout") an
 Buying and selling is in dollars or shares (fractions allowed, no fees). Badges and levels reward learning and
 spreading risk, never trading often.
 
-**Teachers** (Settings → For teachers) make an account with their school, a sign-in name and a password, then create as many
+**Teachers** have their own area at `/teacher` (also Settings → For teachers), with its own header and no
+student tabs. They make an account with their school, a sign-in name and a password, then create as many
 classes as they need. Each class has its own join code and starting cash. A class page shows a summary (how many
 have traded, the average change, the most held stocks) and every student with their holdings, recent trades, when
 they were last active, and what they have learned (level, lessons, words, flashcards, badges). Students can be
 sorted by value, name, learning or activity. A teacher can reset a student's PIN, remove a student, start a new
 round, or delete a class. Signing in on another device shows the same classes.
+
+A class page has four tabs. **Overview**: the join code, how many have traded, the average change, average
+learning per student, the most held stocks, and "Worth a word" (who has not traded, who has been away a week,
+who has almost everything in one stock). **Students**: the sortable list or table, with a spreadsheet download
+on the website. **Activity**: the class's latest trades. **Settings**: pause trading, allow trading only while
+the market is open, rename, new round, delete.
+
+### Trading hours
+
+The US markets (NYSE and Nasdaq) are open 9:30 am to 4 pm New York time on weekdays, which is 10:30 am to 5 pm
+in Bermuda all year, and shut on the holidays listed in `app/src/lib/provider.ts` (update that list yearly).
+When the market is closed the home screen says when it next opens. By default students can still trade then,
+at the last price, because most of them are free after school. A teacher can switch a class to trade in market
+hours only.
 
 To hand a device to someone else, or to demo a fresh login, use Settings → Start over as a new student. It
 clears that device only; a class portfolio stays on the class server.
@@ -99,7 +114,8 @@ for commercial terms). Price that in.
 
 ### Get an APK
 
-The "Android APK" workflow builds on every push to `main` that touches `app/`. The newest build is always
+The "Android APK" workflow runs only when asked: change `.github/apk-build` and push, or use "Run workflow" on
+the Actions tab. The newest build is always
 <https://github.com/forgeframehq/investors-club/releases/download/latest/InvestorsClub.apk>.
 
 ## The class server

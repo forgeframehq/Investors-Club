@@ -7,7 +7,7 @@ import Svg, { Polyline } from 'react-native-svg';
 
 import { SECTORS, STOCKS } from '@/data/stocks';
 import { ago, fmtDayKey, money, pct, signedMoney } from '@/lib/format';
-import { loadHistory, loadMarkers, marketOpen, refreshQuotes, source } from '@/lib/market';
+import { loadHistory, loadMarkers, marketOpen, nextOpenText, refreshQuotes, source } from '@/lib/market';
 import { dayChangePct, inClass, missionsDone, portfolio, stock, streak, toggleWatch, totalValue, useStore } from '@/lib/store';
 import type { HistoryPoint } from '@/lib/types';
 import { PriceChart } from '@/ui/chart';
@@ -191,6 +191,13 @@ export default function Market() {
             <Txt size={15} color={C.muted}>Investors Club uses real stock prices. Join your class, or add a free market data key, to see them.</Txt>
             <Btn title="Set up market data" onPress={() => router.push('/market-data')} />
           </Card>
+        )}
+
+        {src !== 'none' && !marketOpen() && (
+          <Row gap={10} style={{ backgroundColor: C.accentDim, borderRadius: 12, padding: 12 }}>
+            <Icon name="moon-outline" size={20} color={C.accent} />
+            <Txt size={13} style={{ flex: 1 }}>{nextOpenText()} Until then you see the last prices.</Txt>
+          </Row>
         )}
 
         <Row style={{ alignItems: 'flex-end' }}>
