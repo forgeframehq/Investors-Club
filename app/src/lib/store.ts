@@ -358,13 +358,29 @@ export function badges(): Badge[] {
   ];
 }
 
-const LEVELS = ['Rookie', 'Saver', 'Analyst', 'Strategist', 'Fund Manager', 'Tycoon'];
+/** The rungs of the progress ladder, bottom first, with the points needed to stand on each. */
+export const LADDER = [
+  { name: 'Rookie', points: 0, icon: 'leaf-outline', about: 'Everyone starts here.' },
+  { name: 'Saver', points: 150, icon: 'wallet-outline', about: 'You know the basics and have started learning the words.' },
+  { name: 'Analyst', points: 400, icon: 'search-outline', about: 'You read a stock\'s markers before you choose.' },
+  { name: 'Strategist', points: 800, icon: 'map-outline', about: 'You spread your money and think ahead.' },
+  { name: 'Fund Manager', points: 1400, icon: 'briefcase-outline', about: 'You could explain investing to a friend.' },
+  { name: 'Tycoon', points: 2200, icon: 'trophy-outline', about: 'The top of the ladder.' },
+];
+/** What earns points. Nothing here is a trade: points come from learning and good habits. */
+export const POINTS = [
+  { what: 'Read a new word in the glossary', points: 10 },
+  { what: 'Know a flashcard (right twice in a row)', points: 10 },
+  { what: 'Finish all three daily missions', points: 20 },
+  { what: 'Pass a lesson quiz with full marks', points: 50 },
+  { what: 'Earn a badge', points: 100 },
+];
 /** Investor level from points: 10 per word read, 10 per flashcard known, 20 per day of missions, 50 per lesson passed, 100 per badge. */
 export function level() {
   const points = db.learned.terms.length * 10 + cardsKnown() * 10 + db.play.fullDays * 20 + lessonsPassed() * 50 + badges().filter((x) => x.earned).length * 100;
-  const steps = [0, 150, 400, 800, 1400, 2200];
+  const steps = LADDER.map((x) => x.points);
   let i = 0;
   while (i < steps.length - 1 && points >= steps[i + 1]) i++;
   const next = steps[i + 1] ?? null;
-  return { name: LEVELS[i], number: i + 1, points, next, progress: next ? (points - steps[i]) / (next - steps[i]) : 1 };
+  return { name: LADDER[i].name, number: i + 1, points, next, progress: next ? (points - steps[i]) / (next - steps[i]) : 1 };
 }

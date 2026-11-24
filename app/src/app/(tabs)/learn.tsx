@@ -16,7 +16,7 @@ export default function Learn() {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <TabHeader title="Learn" />
       <Page>
-        <Card>
+        <TapCard label="Open the progress ladder" onPress={() => router.push('/ladder')}>
           <Row>
             <Icon name="ribbon-outline" color={C.accent} />
             <Txt size={16} bold style={{ flex: 1 }}>Level {lv.number}: {lv.name}</Txt>
@@ -24,7 +24,11 @@ export default function Learn() {
           </Row>
           <Bar value={lv.progress} />
           <Txt size={13} color={C.muted}>Earn points by reading words, knowing flashcards, passing quizzes and collecting badges.</Txt>
-        </Card>
+          <Row gap={4}>
+            <Txt size={14} bold color={C.accent}>See the progress ladder</Txt>
+            <Icon name="chevron-forward" size={16} color={C.accent} />
+          </Row>
+        </TapCard>
 
         <MissionsCard />
         <GuessCard />

@@ -99,8 +99,7 @@ export function Welcome() {
               <Txt size={15} color={C.muted} center>Your first name is enough. Then pick a picture.</Txt>
             </View>
             <Field accessibilityLabel="Your first name" placeholder="First name, like Sam" value={name} onChangeText={setName} maxLength={20} autoCorrect={false} autoCapitalize="words" />
-            <AvatarPicker value={pic} onChange={setPic} starterOnly />
-            <Txt size={13} color={C.muted} center>More characters unlock as you level up.</Txt>
+            <AvatarPicker value={pic} onChange={setPic} />
           </>
         )}
 

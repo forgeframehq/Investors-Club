@@ -1,13 +1,15 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { syncPortfolio } from '@/lib/classroom';
 import { level, setSetting, useStore } from '@/lib/store';
 import { Avatar, AvatarPicker } from '@/ui/avatar';
-import { C, Card, Field, Page, Txt } from '@/ui/kit';
+import { Btn, C, Card, Field, Page, Txt } from '@/ui/kit';
 
 /** Change your name and picture. In a class, the picture also shows on the leaderboard. */
 export default function Profile() {
+  const router = useRouter();
   const { settings, cls } = useStore();
   const [name, setName] = useState(settings.name);
   const lv = level();
@@ -28,12 +30,13 @@ export default function Profile() {
         <Txt size={22} bold>{settings.name || 'Investor'}</Txt>
         <Txt size={14} color={C.muted}>Level {lv.number}: {lv.name}</Txt>
       </View>
+      <Btn title="See my progress ladder" kind="ghost" icon="podium-outline" onPress={() => router.push('/ladder')} />
       <Txt size={18} bold>Name</Txt>
       <Field accessibilityLabel="Your first name" placeholder="First name, like Sam" value={name} onChangeText={saveName} maxLength={20} autoCorrect={false} autoCapitalize="words" />
       {!!cls && <Txt size={13} color={C.muted}>Your class knows you as {cls.name}. That name stays the same so you keep your class portfolio.</Txt>}
       <Txt size={18} bold>Picture</Txt>
       <Card>
-        <AvatarPicker value={settings.avatar} onChange={savePicture} level={lv.number} />
+        <AvatarPicker value={settings.avatar} onChange={savePicture} />
       </Card>
     </Page>
   );

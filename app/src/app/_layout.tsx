@@ -64,6 +64,7 @@ export default function RootLayout() {
         <Stack.Screen name="market-data" options={{ title: 'Market data' }} />
         <Stack.Screen name="flashcards" options={{ title: 'Flashcards' }} />
         <Stack.Screen name="profile" options={{ title: 'Your profile' }} />
+        <Stack.Screen name="ladder" options={{ title: 'Progress ladder' }} />
         <Stack.Screen name="teacher" options={{ title: 'For teachers' }} />
         <Stack.Screen name="teacher-class" options={{ title: 'Class' }} />
       </Stack>

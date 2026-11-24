@@ -12,7 +12,7 @@ read each stock's markers before choosing, learn the vocabulary, and compete on 
 ## The app
 
 A new student starts with four welcome steps: what the app is, a first name and a picture (chosen from built-in
-characters, never a photo; eight to start with and twelve more that unlock at investor levels 2, 3 and 4), a reading level, and which portfolio to start with (class or practice).
+twenty characters, never a photo), a reading level, and which portfolio to start with (class or practice).
 
 Four tabs:
 
@@ -21,6 +21,8 @@ Four tabs:
   opens a peek under it (today's high, low and open, company size, and the past month as a graph) with a Trade
   button. Filter by group, search, sort.
 - **Portfolio** — total value, gain since the start, your mix by group, holdings, badges, investor level, trades.
+- **Progress ladder** (from Learn or the profile) — six rungs from Rookie to Tycoon, where you stand, and what
+  earns points. Points come from learning and good habits, never from trading more.
 - **Learn** — three daily missions with a streak, an up-or-down guessing game, six short lessons with quizzes,
   flashcards (ten a round: pick the meaning from three and the card flips to show the answer; the ones you miss
   come back first), and a 45-word glossary with each word explained at

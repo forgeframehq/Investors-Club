@@ -122,6 +122,14 @@ function driver(p, errs) {
   check(await tap('Word Dividend') && (await text()).includes('pocket money'), 'glossary explains a word simply'); await shot('13-glossary');
   check((await data()).learned.terms.includes('dividend'), 'the word is marked as read');
 
+  // ---- Progress ladder ----
+  await go('/learn');
+  check(await tap('Open the progress ladder'), 'open the progress ladder from Learn'); await sleep(400); await shot('12a-ladder');
+  t = await text();
+  check(t.includes('Tycoon') && t.includes('You are here') && t.includes('How to climb'), 'the ladder shows every rung, where you are, and how to climb');
+  await go('/profile');
+  check((await p.$$('[aria-label^="Picture "]')).length === 20 && !(await text()).includes('Unlocks at'), 'every character is free to choose');
+
   // ---- Daily missions and the up-or-down game ----
   await go('/learn'); await shot('13-daily');
   t = await text();

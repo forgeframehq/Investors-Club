@@ -16,6 +16,8 @@ This repo is the home of the app. It was moved here from `forgeframehq/apps` (fo
   (any text, such as the version code) and push. It takes about 20 minutes; then send him the download link
   with what changed and what to check.
 - The latest APK is always `releases/download/latest/InvestorsClub.apk`.
+- **Talk first, build on "go".** For anything beyond a small fix, reply with a short list of what you would
+  build and any choices he needs to make, and wait for his go-ahead before writing code.
 - Tell him plainly what was tested and what was not. Nothing here runs on a real phone before he installs it.
 
 ## Layout
