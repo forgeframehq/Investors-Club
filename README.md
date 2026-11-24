@@ -108,9 +108,9 @@ The "Android APK" workflow builds on every push to `main` that touches `app/`. T
    - `TWELVE_KEY` — graphs.
    - `SCHOOL_KEY` — optional but recommended: any phrase you choose. Teachers must enter it to create an
      account, which stops strangers making classes on your server.
-3. Point the app at it: either type the address under Settings → Market data, or set the GitHub repository
-   variable `INVESTORS_CLUB_SERVER_URL` and rebuild so the APK has it built in. The website needs nothing: it
-   uses the address it was loaded from.
+3. The app is built to use `https://investors-club.forgeframehq.workers.dev` (see `.github/workflows/android.yml`;
+   the repository variable `INVESTORS_CLUB_SERVER_URL` overrides it). The website needs nothing: it uses the
+   address it was loaded from. A different server can also be typed in under Settings → Market data.
 
 ### How it stays inside the free data plans
 

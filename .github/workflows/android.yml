@@ -20,9 +20,9 @@ jobs:
       run:
         working-directory: app
     env:
-      # Optional. Set the repository variable INVESTORS_CLUB_SERVER_URL to the deployed class server's address and
-      # the app is built already connected to it. Without it, the address is typed in under Settings > Market data.
-      EXPO_PUBLIC_SERVER_URL: ${{ vars.INVESTORS_CLUB_SERVER_URL }}
+      # The class server the app is built to use. Set the repository variable INVESTORS_CLUB_SERVER_URL to
+      # point a build at a different one.
+      EXPO_PUBLIC_SERVER_URL: ${{ vars.INVESTORS_CLUB_SERVER_URL || 'https://investors-club.forgeframehq.workers.dev' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
