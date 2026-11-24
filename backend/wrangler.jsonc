@@ -3,6 +3,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
+  // Keeps the workers.dev address switched on. Without this line a Worker created from the dashboard has it off.
+  "workers_dev": true,
   // Builds the website into ./public before each deploy, so one deploy serves the site and the API.
   "build": { "command": "node build-web.mjs" },
   "assets": {
