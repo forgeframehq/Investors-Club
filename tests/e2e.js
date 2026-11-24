@@ -132,7 +132,7 @@ function driver(p, errs) {
 
   // ---- Class: teacher makes an account and a class, student joins and trades ----
   await go('/teacher'); await shot('14-teacher-sign-in');
-  check(await tap('Create an account') && await type('Teacher name', 'Ms Smith') && await type('Sign-in name', 'mssmith') && await type('Password', 'apples-and-pears') && await tap('Create account'), 'teacher creates an account'); await sleep(1500);
+  check(await tap('Create an account') && await type('Teacher name', 'Ms Smith') && await tap('Choose your school') && await tap('Warwick Academy') && await type('Sign-in name', 'mssmith') && await type('Password', 'apples-and-pears') && await tap('Create account'), 'teacher creates an account'); await sleep(1500);
   check((await text()).includes('Ms Smith') && (await text()).includes('No classes yet'), 'the teacher is signed in and has no classes yet'); await shot('14-teacher-home');
   check(await type('Class name', 'P6 Blue') && await tap('Create class'), 'teacher creates a class'); await sleep(1500); await shot('15-teacher-empty');
   t = await text();
@@ -151,9 +151,11 @@ function driver(p, errs) {
   await s.go('/');
   check(await s.tap('Get started') && await s.type('Your first name', 'Sam') && await s.tap('Picture Gamer') && await s.tap('Next') && await s.tap('Next') && await s.tap('Class portfolio'), 'a new student chooses the class portfolio in the welcome steps'); await sleep(600); await s.shot('16-join');
   check((await s.text()).includes('Join your class'), 'choosing the class portfolio opens the join form');
+  check(await s.tap('Choose your school') && await s.tap('Warwick Academy') && await s.tap('Choose your class') && await s.tap('P6 Blue (Ms Smith)'), 'student chooses their school and class'); await s.shot('16-join-chosen');
   check(await s.type('Class code', code) && await s.type('Your name', 'Sam T') && await s.type('PIN', '1234') && await s.tap('Join class'), 'student joins with code, name and PIN'); await sleep(1200); await s.shot('17-leaderboard');
   t = await s.text();
   check(t.includes('P6 Blue') && t.includes('Sam T (you)') && t.includes('Alex R'), 'student sees the class leaderboard');
+  check(t.includes('Bermuda schools') && t.includes('Warwick Academy (your school)'), 'student sees the table of schools');
   await s.go('/stock/NTB');
   check(await s.tap('Buy') && await s.type('Amount', '2000') && await s.tap('Confirm buy'), 'student buys in the class portfolio'); await sleep(1200);
   await s.tap('OK'); await sleep(300); await s.tap('OK');
@@ -185,7 +187,10 @@ function driver(p, errs) {
   check(sam && sam.avatar === 'gamer' && sam.progress && sam.progress.level >= 1 && !!sam.seen, "the class server knows the student's picture and learning");
   const bad = await api(`/teacher/class?code=${code}`, null, 'nope');
   check(!!bad.error, 'the teacher view needs a signed-in teacher');
-  const other2 = await api('/teacher/signup', { name: 'Mr Jones', login: 'mrjones', password: 'plums-and-figs' });
+  const other2 = await api('/teacher/signup', { name: 'Mr Jones', school: 'Saltus Grammar School', login: 'mrjones', password: 'plums-and-figs' });
+  const made2 = await api('/teacher/classes', { name: 'M2 Red', start_cash: 10000 }, other2.token);
+  const wrongClass = await api('/join', { class: (await api('/school-classes?school=' + encodeURIComponent('Saltus Grammar School'))).classes[0].id, code, name: 'Pat Q', pin: '9999' });
+  check(!!made2.code && /not the code for M2 Red/.test(wrongClass.error || ''), "one class's code does not open another class");
   check(!!other2.token && !!(await api(`/teacher/class?code=${code}`, null, other2.token)).error, "a teacher cannot open another teacher's class");
   check(/do not match/.test((await api('/teacher/login', { login: 'mssmith', password: 'wrong-password' })).error || ''), 'a wrong password is refused');
   const again = await api('/teacher/login', { login: 'MsSmith', password: 'apples-and-pears' });

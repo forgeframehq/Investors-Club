@@ -21,7 +21,8 @@ Four tabs:
 - **Learn** — three daily missions with a streak, an up-or-down guessing game, six short lessons with quizzes,
   flashcards (ten a round, the ones you miss come back first), and a 45-word glossary with each word explained at
   two reading levels.
-- **Class** — join with a class code, a first name with last initial, and a PIN. Then the leaderboard.
+- **Class** — choose your school and class, then join with the class code from your teacher, a first name with
+  last initial, and a PIN. Then the class leaderboard and a table of Bermuda schools by average change.
 
 A stock's page shows what the company does, the price, a graph (1W / 1M / 3M / 1Y) and its **markers**: company
 size, price-to-earnings, dividend, jumpiness (beta), 52-week range, past year's change and sales growth. Each
@@ -30,7 +31,7 @@ marker shows the real number, a plain word ("Giant", "Calm", "Steady payout") an
 Buying and selling is in dollars or shares (fractions allowed, no fees). Badges and levels reward learning and
 spreading risk, never trading often.
 
-**Teachers** (Settings → For teachers) make an account with a sign-in name and a password, then create as many
+**Teachers** (Settings → For teachers) make an account with their school, a sign-in name and a password, then create as many
 classes as they need. Each class has its own join code and starting cash. A class page shows a summary (how many
 have traded, the average change, the most held stocks) and every student with their holdings, recent trades, when
 they were last active, and what they have learned (level, lessons, words, flashcards, badges). Students can be
@@ -39,6 +40,12 @@ round, or delete a class. Signing in on another device shows the same classes.
 
 No email addresses anywhere: students are a name and a PIN inside one class, and a teacher is a sign-in name and
 a password. That also means a forgotten teacher password cannot be reset yet (see "Not built yet").
+
+### Schools
+
+Teachers pick their school from the list in `app/src/data/schools.ts` (or type it if it is missing). Students
+only see schools that have a class. The schools table shows averages only: no student or class is named. The
+public system is being reorganised, so check the list each school year.
 
 ### The stocks
 
@@ -144,5 +151,5 @@ and Twelve Data calls, including real logos, are not covered by it. Check those 
 - Bermuda Stock Exchange prices (no free feed).
 - Dividends paid into portfolios, and stock splits.
 - Resetting a forgotten teacher password, and moving a class from one teacher to another.
-- A school-wide view across several teachers, and competing between schools.
+- A school-wide view for a head teacher across several teachers' classes.
 - A photo as a profile picture (deliberately left out: photos of children need a school's consent).

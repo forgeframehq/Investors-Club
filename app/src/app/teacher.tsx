@@ -3,12 +3,13 @@ import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 
 import { createClass, teacherClasses, teacherSignIn, teacherSignOut, teacherSignUp } from '@/lib/classroom';
+import { SCHOOLS } from '@/data/schools';
 import { money } from '@/lib/format';
 import { serverUrl } from '@/lib/market';
 import { useStore } from '@/lib/store';
 import type { ClassSummary } from '@/lib/types';
 import { Btn, C, Card, Chip, Delta, Empty, Field, Icon, Page, Row, TapCard, Txt } from '@/ui/kit';
-import { confirm, pick, toast } from '@/ui/overlay';
+import { confirm, pick, prompt, toast } from '@/ui/overlay';
 
 const CASH = [1000, 10000, 100000];
 
@@ -18,6 +19,7 @@ export default function Teacher() {
   const { teacher } = useStore();
   const [mode, setMode] = useState<'in' | 'new'>('in');
   const [name, setName] = useState('');
+  const [school, setSchool] = useState('');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [schoolKey, setSchoolKey] = useState('');
@@ -50,10 +52,18 @@ export default function Teacher() {
     }
   };
   const enter = () => run(async () => {
-    if (mode === 'new') await teacherSignUp(name, login, password, schoolKey);
+    if (mode === 'new') await teacherSignUp(name, school, login, password, schoolKey);
     else await teacherSignIn(login, password);
     setPassword('');
   });
+  const OTHER = 'My school is not on the list';
+  const chooseSchool = async () => {
+    const v = await pick('Your school', [...SCHOOLS.map((x) => x.name), OTHER], school || null);
+    if (v === OTHER) {
+      const typed = await prompt('Your school', '', 'School name', { okText: 'Use this name' });
+      if (typed && typed.trim().length >= 3) setSchool(typed.trim());
+    } else if (v) setSchool(v);
+  };
   const chooseCash = async () => {
     const v = await pick('Starting cash for each student', CASH, cash, (n) => money(n, false));
     if (v) setCash(v);
@@ -85,11 +95,12 @@ export default function Teacher() {
             <Chip title="Create an account" selected={isNew} onPress={() => { setMode('new'); setError(''); }} />
           </Row>
           {isNew && <Field accessibilityLabel="Teacher name" placeholder="Your name, like Ms Smith" value={name} onChangeText={setName} maxLength={30} style={{ backgroundColor: C.cardHi }} />}
+          {isNew && <Btn title={school || 'Choose your school'} kind="ghost" left icon="business-outline" onPress={chooseSchool} />}
           <Field accessibilityLabel="Sign-in name" placeholder={isNew ? 'Choose a sign-in name, like mssmith' : 'Sign-in name'} value={login} onChangeText={setLogin} autoCapitalize="none" autoCorrect={false} maxLength={30} style={{ backgroundColor: C.cardHi }} />
           <Field accessibilityLabel="Password" placeholder={isNew ? 'Choose a password (8 or more characters)' : 'Password'} value={password} onChangeText={setPassword} autoCapitalize="none" autoCorrect={false} secureTextEntry maxLength={100} style={{ backgroundColor: C.cardHi }} />
           {isNew && <Field accessibilityLabel="School key" placeholder="School key (only if you were given one)" value={schoolKey} onChangeText={setSchoolKey} autoCapitalize="none" autoCorrect={false} style={{ backgroundColor: C.cardHi }} />}
           {!!error && <Txt size={14} color={C.bad}>{error}</Txt>}
-          <Btn title={isNew ? 'Create account' : 'Sign in as teacher'} busy={busy} disabled={login.trim().length < 3 || password.length < 8 || (isNew && name.trim().length < 2)} onPress={enter} />
+          <Btn title={isNew ? 'Create account' : 'Sign in as teacher'} busy={busy} disabled={login.trim().length < 3 || password.length < 8 || (isNew && (name.trim().length < 2 || !school))} onPress={enter} />
           {isNew && <Txt size={12} color={C.muted}>Write your password down. There is no email on the account, so it cannot be sent to you if you forget it.</Txt>}
         </Card>
       </Page>
@@ -102,6 +113,7 @@ export default function Teacher() {
         <View style={{ flex: 1 }}>
           <Txt size={13} color={C.muted}>Signed in as</Txt>
           <Txt size={22} bold>{teacher.name}</Txt>
+          {!!teacher.school && <Txt size={14} color={C.muted}>{teacher.school}</Txt>}
         </View>
         <Btn title="Sign out" kind="text" icon="log-out-outline" onPress={signOut} />
       </Row>

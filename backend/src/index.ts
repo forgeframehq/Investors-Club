@@ -4,6 +4,7 @@
 //      email), portfolios, trades filled at the server's price, and what each student has learned.
 //   3. The website. The same deploy serves the web version of the app (see wrangler.jsonc).
 // The database tables create themselves on first use, so deploying needs no database commands.
+import { SCHOOLS } from '../../app/src/data/schools';
 import { STOCKS } from '../../app/src/data/stocks';
 import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, twelveHistory, type GetJson } from '../../app/src/lib/provider';
 import { applyTrade, roundShares } from '../../app/src/lib/rules';
@@ -31,9 +32,10 @@ const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS } });
 
 const SCHEMA = [
-  `CREATE TABLE IF NOT EXISTS teachers (id TEXT PRIMARY KEY, login_key TEXT NOT NULL UNIQUE, login TEXT NOT NULL, name TEXT NOT NULL, salt TEXT NOT NULL, pass_hash TEXT NOT NULL, fails INTEGER NOT NULL DEFAULT 0, fail_at INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS teachers (id TEXT PRIMARY KEY, login_key TEXT NOT NULL UNIQUE, login TEXT NOT NULL, name TEXT NOT NULL, school TEXT NOT NULL DEFAULT '', salt TEXT NOT NULL, pass_hash TEXT NOT NULL, fails INTEGER NOT NULL DEFAULT 0, fail_at INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS teacher_sessions (token_hash TEXT PRIMARY KEY, teacher_id TEXT NOT NULL, created_at TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS classes (code TEXT PRIMARY KEY, name TEXT NOT NULL, owner TEXT NOT NULL, start_cash REAL NOT NULL, created_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS classes (code TEXT PRIMARY KEY, pub TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, owner TEXT NOT NULL, school TEXT NOT NULL DEFAULT '', start_cash REAL NOT NULL, created_at TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS classes_school ON classes (school)`,
   `CREATE INDEX IF NOT EXISTS classes_owner ON classes (owner)`,
   `CREATE TABLE IF NOT EXISTS students (id TEXT PRIMARY KEY, class_code TEXT NOT NULL, name TEXT NOT NULL, name_key TEXT NOT NULL, pin_hash TEXT, fails INTEGER NOT NULL DEFAULT 0, cash REAL NOT NULL, stamp TEXT NOT NULL DEFAULT '', removed INTEGER NOT NULL DEFAULT 0, avatar TEXT NOT NULL DEFAULT '', progress TEXT NOT NULL DEFAULT '', seen TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS students_name ON students (class_code, name_key)`,
@@ -193,8 +195,8 @@ async function warm(env: Env) {
 
 // ---------- classes ----------
 
-interface TeacherRow { id: string; login: string; name: string; salt: string; pass_hash: string; fails: number; fail_at: number }
-interface ClassRow { code: string; name: string; owner: string; start_cash: number }
+interface TeacherRow { id: string; login: string; name: string; school: string; salt: string; pass_hash: string; fails: number; fail_at: number }
+interface ClassRow { code: string; pub: string; name: string; owner: string; school: string; start_cash: number }
 interface StudentRow { id: string; class_code: string; name: string; cash: number; stamp: string; pin_hash: string | null; fails: number; removed: number; avatar: string }
 
 const cleanName = (text: unknown, max: number) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -239,10 +241,10 @@ async function classOf(env: Env, teacher: TeacherRow, code: unknown): Promise<Cl
   if (!cls) throw new Problem(404, 'That class is not one of yours.');
   return cls;
 }
-async function teacherSession(env: Env, teacher: Pick<TeacherRow, 'id' | 'name' | 'login'>) {
+async function teacherSession(env: Env, teacher: Pick<TeacherRow, 'id' | 'name' | 'login' | 'school'>) {
   const token = random(40);
   await env.DB.prepare('INSERT INTO teacher_sessions (token_hash, teacher_id, created_at) VALUES (?,?,?)').bind(await sha(token), teacher.id, now()).run();
-  return json({ token, name: teacher.name, login: teacher.login });
+  return json({ token, name: teacher.name, login: teacher.login, school: teacher.school });
 }
 
 /** Everyone in a class, richest first. `detail` adds holdings and recent trades for the teacher view. */
@@ -297,12 +299,44 @@ async function route(req: Request, env: Env): Promise<Response> {
   if (path === '/logos') return json({ logos: await getLogos(env) });
   if (path === '/history') return json({ points: await getHistory(env, one()) });
 
+  // Schools that have at least one class here, with how each school's students are doing on average. Only totals
+  // are public: no student or class is named.
+  if (path === '/schools') {
+    const [classes, students, holdings] = await env.DB.batch([
+      env.DB.prepare(`SELECT code, school, start_cash FROM classes WHERE school != ''`),
+      env.DB.prepare('SELECT id, class_code, cash FROM students WHERE removed = 0'),
+      env.DB.prepare('SELECT h.student_id, h.symbol, h.shares, h.cost FROM holdings h JOIN students s ON s.id = h.student_id WHERE s.removed = 0'),
+    ]);
+    const held = holdings.results as unknown as (Holding & { student_id: string })[];
+    const quotes = await getQuotes(env, [...new Set(held.map((h) => h.symbol))]);
+    const invested = new Map<string, number>();
+    for (const h of held) invested.set(h.student_id, (invested.get(h.student_id) ?? 0) + (quotes[h.symbol] ? h.shares * quotes[h.symbol].price : h.cost));
+    const bySchool = new Map<string, { classes: number; gains: number[] }>();
+    const all = students.results as unknown as { id: string; class_code: string; cash: number }[];
+    for (const c of classes.results as unknown as { code: string; school: string; start_cash: number }[]) {
+      const entry = bySchool.get(c.school) ?? { classes: 0, gains: [] };
+      entry.classes++;
+      for (const st of all) if (st.class_code === c.code) entry.gains.push(((st.cash + (invested.get(st.id) ?? 0) - c.start_cash) / c.start_cash) * 100);
+      bySchool.set(c.school, entry);
+    }
+    const schools = [...bySchool.entries()].map(([name, e]) => ({ name, classes: e.classes, students: e.gains.length, avgGainPct: e.gains.length ? Math.round((e.gains.reduce((a, b) => a + b, 0) / e.gains.length) * 100) / 100 : 0 }));
+    return json({ schools: schools.sort((a, b) => b.avgGainPct - a.avgGainPct || a.name.localeCompare(b.name)) });
+  }
+  // The classes at one school, for a student choosing theirs. The join code is not included: it comes from the teacher.
+  if (path === '/school-classes') {
+    const rows = await env.DB.prepare('SELECT c.pub AS id, c.name, t.name AS teacher FROM classes c JOIN teachers t ON t.id = c.owner WHERE c.school = ? ORDER BY c.name').bind(url.searchParams.get('school') ?? '').all();
+    return json({ classes: rows.results });
+  }
+
   if (path === '/join' && post) {
     const code = String(body.code ?? '').trim().toUpperCase();
     const name = cleanName(body.name, 20);
     const pin = String(body.pin ?? '').trim();
     const avatar = cleanAvatar(body.avatar);
-    const cls = await env.DB.prepare('SELECT * FROM classes WHERE code = ?').bind(code).first<ClassRow>();
+    // A student who picked their class from the list sends its id too, and the code has to be that class's code.
+    const picked = body.class ? await env.DB.prepare('SELECT * FROM classes WHERE pub = ?').bind(String(body.class)).first<ClassRow>() : null;
+    if (picked && picked.code !== code) throw new Problem(403, `That is not the code for ${picked.name}. Check it with your teacher.`);
+    const cls = picked ?? await env.DB.prepare('SELECT * FROM classes WHERE code = ?').bind(code).first<ClassRow>();
     if (!cls) throw new Problem(404, 'No class has that code. Check it with your teacher.');
     if (name.length < 2 || !/^[\p{L}\p{N} .'-]+$/u.test(name)) throw new Problem(400, 'Enter your first name and last initial, like "Sam T".');
     if (!/^\d{4,8}$/.test(pin)) throw new Problem(400, 'Your PIN must be 4 to 8 digits.');
@@ -324,7 +358,7 @@ async function route(req: Request, env: Env): Promise<Response> {
     }
     const token = random(32);
     await env.DB.prepare('INSERT INTO sessions (token_hash, student_id, created_at) VALUES (?,?,?)').bind(await sha(token), student.id, now()).run();
-    return json({ token, name: student.name, class: { code: cls.code, name: cls.name }, portfolio: await loadPortfolio(env, student, cls.start_cash) });
+    return json({ token, name: student.name, class: { code: cls.code, name: cls.name, school: cls.school }, portfolio: await loadPortfolio(env, student, cls.start_cash) });
   }
 
   // GET reads the portfolio. POST does the same and also saves the student's picture and what they have learned.
@@ -376,14 +410,17 @@ async function route(req: Request, env: Env): Promise<Response> {
     const name = cleanName(body.name, 30);
     const login = cleanName(body.login, 30);
     const password = String(body.password ?? '');
+    // A school from the built-in list, or one the teacher typed because theirs was missing.
+    const school = cleanName(body.school, 60);
+    if (school.length < 3) throw new Problem(400, 'Choose your school.');
     if (name.length < 2) throw new Problem(400, 'Enter your name, like "Ms Smith".');
     if (!/^[a-zA-Z0-9._-]{3,30}$/.test(login)) throw new Problem(400, 'Choose a sign-in name of 3 to 30 letters or numbers, with no spaces.');
     if (password.length < 8 || password.length > 100) throw new Problem(400, 'Choose a password of at least 8 characters.');
     const taken = await env.DB.prepare('SELECT 1 FROM teachers WHERE login_key = ?').bind(login.toLowerCase()).first();
     if (taken) throw new Problem(409, 'That sign-in name is taken. Choose another, or sign in if it is yours.');
-    const teacher = { id: random(16), login, name };
+    const teacher = { id: random(16), login, name, school: SCHOOLS.find((x) => x.name.toLowerCase() === school.toLowerCase())?.name ?? school };
     const salt = random(16);
-    await env.DB.prepare('INSERT INTO teachers (id, login_key, login, name, salt, pass_hash, created_at) VALUES (?,?,?,?,?,?,?)').bind(teacher.id, login.toLowerCase(), login, name, salt, await passHash(password, salt), now()).run();
+    await env.DB.prepare('INSERT INTO teachers (id, login_key, login, name, school, salt, pass_hash, created_at) VALUES (?,?,?,?,?,?,?,?)').bind(teacher.id, login.toLowerCase(), login, name, teacher.school, salt, await passHash(password, salt), now()).run();
     return teacherSession(env, teacher);
   }
 
@@ -422,7 +459,7 @@ async function route(req: Request, env: Env): Promise<Response> {
       for (const h of held) invested.set(h.student_id, (invested.get(h.student_id) ?? 0) + (quotes[h.symbol] ? h.shares * quotes[h.symbol].price : h.cost));
       const all = students.results as unknown as { id: string; class_code: string; cash: number }[];
       return json({
-        name: teacher.name,
+        name: teacher.name, school: teacher.school,
         classes: (classes.results as unknown as { code: string; name: string; start_cash: number }[]).map((c) => {
           const mine = all.filter((x) => x.class_code === c.code);
           const gains = mine.map((x) => ((x.cash + (invested.get(x.id) ?? 0) - c.start_cash) / c.start_cash) * 100);
@@ -439,7 +476,7 @@ async function route(req: Request, env: Env): Promise<Response> {
       const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM classes WHERE owner = ?').bind(teacher.id).first<{ n: number }>();
       if ((count?.n ?? 0) >= MAX_CLASSES) throw new Problem(403, `You can run up to ${MAX_CLASSES} classes.`);
       const code = joinCode();
-      await env.DB.prepare('INSERT INTO classes (code, name, owner, start_cash, created_at) VALUES (?,?,?,?,?)').bind(code, name, teacher.id, startCash, now()).run();
+      await env.DB.prepare('INSERT INTO classes (code, pub, name, owner, school, start_cash, created_at) VALUES (?,?,?,?,?,?,?)').bind(code, random(10), name, teacher.id, teacher.school, startCash, now()).run();
       return json({ code, name });
     }
 

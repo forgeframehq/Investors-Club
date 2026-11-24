@@ -4,7 +4,7 @@
 // own price, so the leaderboard is fair. All of this is optional: the app works alone as a practice portfolio.
 import { getJson, refreshQuotes, serverUrl } from './market';
 import { db, progress, setClass, setClassPortfolio, setTeacher } from './store';
-import type { ClassLink, ClassSummary, Portfolio, Standing, StudentDetail } from './types';
+import type { ClassLink, ClassSummary, Portfolio, SchoolStanding, Standing, StudentDetail } from './types';
 
 type ServerPortfolio = Omit<Portfolio, 'snapshots'>;
 
@@ -31,11 +31,20 @@ function needServer(): string {
 
 // ---------- students ----------
 
-/** Joins a class, or signs back in on a new device if the name and PIN match. */
-export async function joinClass(code: string, name: string, pin: string) {
+/** Schools with classes on this server, best average first. Also used for the schools table. */
+export async function schools(): Promise<SchoolStanding[]> {
+  return (await call(needServer(), '/schools')).schools;
+}
+/** The classes at one school, for choosing yours. */
+export async function schoolClasses(school: string): Promise<{ id: string; name: string; teacher: string }[]> {
+  return (await call(needServer(), `/school-classes?school=${encodeURIComponent(school)}`)).classes;
+}
+
+/** Joins a class, or signs back in on a new device if the name and PIN match. `classId` is the class picked from the list. */
+export async function joinClass(classId: string, code: string, name: string, pin: string) {
   const server = needServer();
-  const j = await call(server, '/join', { code: code.trim().toUpperCase(), name: name.trim(), pin: pin.trim(), avatar: db.settings.avatar });
-  const link: ClassLink = { server, code: j.class.code, className: j.class.name, token: j.token, name: j.name };
+  const j = await call(server, '/join', { class: classId || undefined, code: code.trim().toUpperCase(), name: name.trim(), pin: pin.trim(), avatar: db.settings.avatar });
+  const link: ClassLink = { server, code: j.class.code, className: j.class.name, school: j.class.school, token: j.token, name: j.name };
   db.cls = link;
   setClassPortfolio(j.portfolio as ServerPortfolio);
   refreshQuotes(true);
@@ -69,15 +78,15 @@ export async function leaderboard(): Promise<{ className: string; standings: Sta
 // ---------- teachers ----------
 
 /** Makes a teacher account. `schoolKey` is only needed if the server was set up to require one. */
-export async function teacherSignUp(name: string, login: string, password: string, schoolKey: string) {
+export async function teacherSignUp(name: string, school: string, login: string, password: string, schoolKey: string) {
   const server = needServer();
-  const j = await call(server, '/teacher/signup', { name: name.trim(), login: login.trim(), password, school_key: schoolKey.trim() });
-  setTeacher({ server, token: j.token, name: j.name, login: j.login });
+  const j = await call(server, '/teacher/signup', { name: name.trim(), school: school.trim(), login: login.trim(), password, school_key: schoolKey.trim() });
+  setTeacher({ server, token: j.token, name: j.name, login: j.login, school: j.school });
 }
 export async function teacherSignIn(login: string, password: string) {
   const server = needServer();
   const j = await call(server, '/teacher/login', { login: login.trim(), password });
-  setTeacher({ server, token: j.token, name: j.name, login: j.login });
+  setTeacher({ server, token: j.token, name: j.name, login: j.login, school: j.school });
 }
 export async function teacherSignOut() {
   await asTeacher('/teacher/logout', {}).catch(() => {}); // sign out on this device even with no connection

@@ -77,11 +77,11 @@ export function Welcome() {
               <Icon name="trending-up" size={42} color={C.accent} />
             </View>
             <Txt size={32} bold>Welcome to Investors Club</Txt>
-            <Txt size={16} color={C.muted}>Learn how the stock market works by trying it yourself.</Txt>
+            <Txt size={16} color={C.muted}>Made for Bermuda schools. Learn how the stock market works by trying it yourself.</Txt>
             <View style={{ gap: 16, marginTop: 8 }}>
               <Point icon="cash-outline" title={`${money(START_CASH, false)} of pretend money`} body="Nothing here is real money, so it is safe to try things out." />
-              <Point icon="pulse-outline" title="Real companies, real prices" body="Buy pieces of companies you know and watch what happens." />
-              <Point icon="trophy-outline" title="Learn, collect badges, climb your class" body="Lessons, flashcards and a leaderboard." />
+              <Point icon="pulse-outline" title="Real companies, real prices" body="Buy pieces of companies you know, including ones based right here in Bermuda." />
+              <Point icon="trophy-outline" title="Learn, collect badges, climb your class" body="Lessons, flashcards, daily missions, and a table of Bermuda schools." />
             </View>
           </>
         )}

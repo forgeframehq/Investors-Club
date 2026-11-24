@@ -65,6 +65,7 @@ export interface ClassLink {
   server: string;
   code: string;
   className: string;
+  school?: string;
   /** Student token. Treat like a password. */
   token: string;
   name: string;
@@ -77,6 +78,7 @@ export interface TeacherLink {
   token: string;
   name: string;
   login: string;
+  school?: string;
 }
 
 export interface Learned {
@@ -142,6 +144,9 @@ export interface StudentDetail extends Standing {
   /** When they last traded or opened the app in this class (ISO UTC), or '' if never since joining. */
   seen: string;
 }
+
+/** A school on the schools table: how its students are doing on average. */
+export interface SchoolStanding { name: string; classes: number; students: number; avgGainPct: number }
 
 /** One line of a teacher's list of classes. */
 export interface ClassSummary {
