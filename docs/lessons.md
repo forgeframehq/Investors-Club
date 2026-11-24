@@ -84,3 +84,11 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
   zip; they are resized to 256 px WebP (about 13 KB each) in `app/assets/avatars` with numeric names. To add
   more, convert the same way and add a line to `data/avatars.ts`. Check each one is an original character
   before bundling it.
+
+## 2026-11-24 — Rank emblems and badge medals
+
+- **Art arrives named by what ChatGPT thought it drew, so check each picture.** Two rank emblems came back with
+  their names swapped (the briefcase was called "strategist"). They were matched by picture when numbering the
+  files in `app/assets/art`; `data/art.ts` lists which number is which.
+- **The art has solid pastel backgrounds**, so it is always shown as a rounded tile (`ui/art.tsx`), and a faded
+  tile means "not reached yet".

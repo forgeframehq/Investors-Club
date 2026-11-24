@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { TERMS } from '@/data/glossary';
 import { LESSONS } from '@/data/lessons';
 import { cardsKnown, level, useStore } from '@/lib/store';
+import { Emblem } from '@/ui/art';
 import { GuessCard, MissionsCard } from '@/ui/daily';
 import { Bar, C, Card, Icon, Page, Row, TabHeader, TapCard, Txt, type IconName } from '@/ui/kit';
 
@@ -18,7 +19,7 @@ export default function Learn() {
       <Page>
         <TapCard label="Open the progress ladder" onPress={() => router.push('/ladder')}>
           <Row>
-            <Icon name="ribbon-outline" color={C.accent} />
+            <Emblem level={lv.number} size={44} />
             <Txt size={16} bold style={{ flex: 1 }}>Level {lv.number}: {lv.name}</Txt>
             <Txt size={14} color={C.muted}>{lv.points} pts</Txt>
           </Row>

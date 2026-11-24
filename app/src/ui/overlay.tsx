@@ -1,6 +1,7 @@
 // Dialogs, bottom sheets and toasts with a promise API, so screens can write
 // `if (await confirm(...))` instead of juggling modal state.
 import { F } from '@/lib/theme';
+import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Btn, C, Txt, type IconName } from './kit';
 
 type Request =
-  | { kind: 'dialog'; title: string; body: string; buttons: { label: string; style: 'primary' | 'danger' | 'ghost' }[] }
+  | { kind: 'dialog'; title: string; body: string; buttons: { label: string; style: 'primary' | 'danger' | 'ghost' }[]; image?: number }
   | { kind: 'menu'; title: string; items: MenuItem[] }
   | { kind: 'pick'; title: string; options: unknown[]; current: unknown; multi: boolean; label: (o: any) => string }
   | { kind: 'prompt'; title: string; initial: string; placeholder: string; okText: string; secure: boolean; multiline: boolean };
@@ -20,8 +21,9 @@ let showToast: (text: string) => void = () => {};
 const ask = <T,>(r: Request) => new Promise<T>((resolve) => show({ ...r, resolve } as Pending));
 
 /** Returns the index of the button pressed, or -1 if dismissed. */
-export const dialog = (title: string, body: string, buttons: { label: string; style: 'primary' | 'danger' | 'ghost' }[]) => ask<number>({ kind: 'dialog', title, body, buttons });
-export const alertBox = (title: string, body = '') => dialog(title, body, [{ label: 'OK', style: 'ghost' }]).then(() => {});
+export const dialog = (title: string, body: string, buttons: { label: string; style: 'primary' | 'danger' | 'ghost' }[], image?: number) => ask<number>({ kind: 'dialog', title, body, buttons, image });
+/** A box with one OK button. `image` is a bundled picture shown large above the title (a badge or a rank emblem). */
+export const alertBox = (title: string, body = '', image?: number) => dialog(title, body, [{ label: 'OK', style: 'ghost' }], image).then(() => {});
 export const confirm = (title: string, body: string, okText: string, opts: { danger?: boolean; cancelText?: string } = {}) =>
   dialog(title, body, [{ label: okText, style: opts.danger ? 'danger' : 'primary' }, { label: opts.cancelText ?? 'Cancel', style: 'ghost' }]).then((i) => i === 0);
 /** Bottom sheet of actions. Returns the index chosen, or -1. */
@@ -77,11 +79,16 @@ export function OverlayHost() {
                   ? { backgroundColor: C.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: insets.bottom + 12, gap: 8, maxHeight: '80%' }
                   : { backgroundColor: C.card, borderRadius: 18, padding: 20, gap: 10, borderWidth: 1, borderColor: C.border, width: '100%', maxWidth: 380, alignSelf: 'center' }}>
                 {sheet && <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: C.cardHi, alignSelf: 'center' }} />}
-                {!!current.title && <Txt size={sheet ? 17 : 19} bold center={sheet}>{current.title}</Txt>}
+                {current.kind === 'dialog' && !!current.image && (
+                  <View style={{ alignSelf: 'center', width: 132, height: 132, borderRadius: 32, overflow: 'hidden', marginBottom: 4 }}>
+                    <Image source={current.image} contentFit="cover" style={{ width: 132, height: 132 }} />
+                  </View>
+                )}
+                {!!current.title && <Txt size={sheet ? 17 : 19} bold center={sheet || (current.kind === 'dialog' && !!current.image)}>{current.title}</Txt>}
 
                 {current.kind === 'dialog' && (
                   <>
-                    {!!current.body && <Txt size={15} color={C.muted}>{current.body}</Txt>}
+                    {!!current.body && <Txt size={15} color={C.muted} center={!!current.image}>{current.body}</Txt>}
                     <View style={{ height: 4 }} />
                     {current.buttons.map((b, i) => (
                       <Btn key={b.label} title={b.label} kind={b.style === 'primary' ? 'primary' : 'ghost'} color={b.style === 'danger' ? C.bad : undefined} onPress={() => done(i)} />

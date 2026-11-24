@@ -5,7 +5,8 @@ import { View } from 'react-native';
 import { syncPortfolio } from '@/lib/classroom';
 import { level, setSetting, useStore } from '@/lib/store';
 import { Avatar, AvatarPicker } from '@/ui/avatar';
-import { Btn, C, Card, Field, Page, Txt } from '@/ui/kit';
+import { Emblem } from '@/ui/art';
+import { Btn, C, Card, Field, Page, Row, Txt } from '@/ui/kit';
 
 /** Change your name and picture. In a class, the picture also shows on the leaderboard. */
 export default function Profile() {
@@ -28,7 +29,10 @@ export default function Profile() {
       <View style={{ alignItems: 'center', gap: 8, paddingVertical: 8 }}>
         <Avatar id={settings.avatar} name={settings.name} size={96} />
         <Txt size={22} bold>{settings.name || 'Investor'}</Txt>
-        <Txt size={14} color={C.muted}>Level {lv.number}: {lv.name}</Txt>
+        <Row gap={8}>
+          <Emblem level={lv.number} size={34} />
+          <Txt size={14} color={C.muted}>Level {lv.number}: {lv.name}</Txt>
+        </Row>
       </View>
       <Btn title="See my progress ladder" kind="ghost" icon="podium-outline" onPress={() => router.push('/ladder')} />
       <Txt size={18} bold>Name</Txt>

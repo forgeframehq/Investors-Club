@@ -8,7 +8,10 @@ import { badges, gainPct, holdingValue, inClass, investedValue, level, portfolio
 import { PriceChart } from '@/ui/chart';
 import { cancelClassOrder } from '@/lib/classroom';
 import { nextOpenText } from '@/lib/market';
+import { BADGE_ART } from '@/data/art';
+import { Emblem, Medal } from '@/ui/art';
 import { Avatar } from '@/ui/avatar';
+import { alertBox } from '@/ui/overlay';
 import { mission } from '@/ui/celebrate';
 import { Bar, Btn, C, Card, Delta, Divider, Empty, Icon, Page, Row, Stat, TabHeader, TapCard, Tile, Txt, type IconName } from '@/ui/kit';
 
@@ -58,9 +61,7 @@ export default function PortfolioTab() {
 
         <Card>
           <Row>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.accentDim, alignItems: 'center', justifyContent: 'center' }}>
-              <Txt size={17} bold color={C.accent}>{lv.number}</Txt>
-            </View>
+            <Emblem level={lv.number} size={48} />
             <View style={{ flex: 1 }}>
               <Txt size={16} bold>{lv.name}</Txt>
               <Txt size={13} color={C.muted}>{lv.next ? `${lv.points} points · ${lv.next - lv.points} to the next level` : `${lv.points} points · top level`}</Txt>
@@ -146,19 +147,15 @@ export default function PortfolioTab() {
 
         <Txt size={18} bold>Badges</Txt>
         <Card>
-          <Txt size={13} color={C.muted}>{earned.filter((b) => b.earned).length} of {earned.length} earned</Txt>
-          {earned.map((b) => (
-            <Row key={b.id} gap={12}>
-              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: b.earned ? C.accentDim : C.cardHi, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={b.icon as IconName} size={20} color={b.earned ? C.accent : C.muted} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Txt size={15} bold color={b.earned ? C.text : C.muted}>{b.title}</Txt>
-                <Txt size={13} color={C.muted}>{b.how}</Txt>
-              </View>
-              {b.earned && <Icon name="checkmark-circle" size={20} color={C.accent} />}
-            </Row>
-          ))}
+          <Txt size={13} color={C.muted}>{earned.filter((b) => b.earned).length} of {earned.length} earned. Tap a badge to see how to earn it.</Txt>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 14 }}>
+            {earned.map((b) => (
+              <TapCard key={b.id} bare label={`Badge ${b.title}`} onPress={() => alertBox(b.title, b.earned ? `${b.how}. You earned this one!` : `Not earned yet. To earn it: ${b.how.charAt(0).toLowerCase()}${b.how.slice(1)}.`, BADGE_ART[b.id])} style={{ width: '25%', alignItems: 'center', gap: 4, paddingHorizontal: 2 }}>
+                <Medal id={b.id} size={62} dim={!b.earned} />
+                <Txt size={11} center color={b.earned ? C.text : C.muted} lines={2}>{b.title}</Txt>
+              </TapCard>
+            ))}
+          </View>
         </Card>
 
         {p.trades.length > 0 && (

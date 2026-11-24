@@ -1,3 +1,4 @@
+import { BADGE_ART, RANK_ART } from '@/data/art';
 import { badges, did, level, streak } from '@/lib/store';
 
 import { alertBox, toast } from './overlay';
@@ -11,9 +12,9 @@ export function watchBadges() {
   const was = level().number;
   return async () => {
     const fresh = badges().filter((b) => b.earned && !had.has(b.id));
-    for (const b of fresh) await alertBox(`Badge earned: ${b.title}`, `${b.how}. Nice work!`);
+    for (const b of fresh) await alertBox(`Badge earned: ${b.title}`, `${b.how}. Nice work!`, BADGE_ART[b.id]);
     const now = level();
-    if (now.number > was) await alertBox(`Level ${now.number}: ${now.name}`, 'You climbed a rung on the progress ladder. Keep learning to reach the next one.');
+    if (now.number > was) await alertBox(`Level ${now.number}: ${now.name}`, 'You climbed a rung on the progress ladder. Keep learning to reach the next one.', RANK_ART[now.number - 1]);
   };
 }
 
@@ -25,5 +26,5 @@ export async function mission(id: string) {
   if (result !== 'all') return;
   const days = streak();
   toast(days > 1 ? `All three missions done. ${days} days in a row!` : 'All three missions done today!');
-  for (const b of badges().filter((x) => x.earned && !had.has(x.id))) await alertBox(`Badge earned: ${b.title}`, `${b.how}. Nice work!`);
+  for (const b of badges().filter((x) => x.earned && !had.has(x.id))) await alertBox(`Badge earned: ${b.title}`, `${b.how}. Nice work!`, BADGE_ART[b.id]);
 }

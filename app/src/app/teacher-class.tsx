@@ -8,6 +8,7 @@ import { ago, fmtDate, fmtShares, money } from '@/lib/format';
 import { nextOpenText } from '@/lib/market';
 import { stock, useStore } from '@/lib/store';
 import type { StudentDetail, Trade } from '@/lib/types';
+import { Emblem } from '@/ui/art';
 import { Avatar } from '@/ui/avatar';
 import { Btn, C, Card, Chip, Delta, Divider, Empty, Icon, Page, Row, Stat, Tile, Txt } from '@/ui/kit';
 import { confirm, menu, prompt, toast } from '@/ui/overlay';
@@ -155,7 +156,7 @@ export default function TeacherClass() {
 
       <Txt size={14} bold>Learning</Txt>
       {s.progress
-        ? <Txt size={13} color={C.muted}>Level {s.progress.level} · {s.progress.lessons} {s.progress.lessons === 1 ? 'lesson' : 'lessons'} passed · {s.progress.words} words read · {s.progress.cards} flashcards known · {s.progress.badges} {s.progress.badges === 1 ? 'badge' : 'badges'} · {s.progress.streak ?? 0}-day mission streak</Txt>
+        ? <Row gap={8} style={{ alignItems: 'flex-start' }}><Emblem level={s.progress.level} size={34} /><Txt size={13} color={C.muted} style={{ flex: 1 }}>Level {s.progress.level} · {s.progress.lessons} {s.progress.lessons === 1 ? 'lesson' : 'lessons'} passed · {s.progress.words} words read · {s.progress.cards} flashcards known · {s.progress.badges} {s.progress.badges === 1 ? 'badge' : 'badges'} · {s.progress.streak ?? 0}-day mission streak</Txt></Row>
         : <Txt size={13} color={C.muted}>Nothing reported yet.</Txt>}
 
       <Txt size={14} bold>Holdings</Txt>
@@ -296,7 +297,7 @@ export default function TeacherClass() {
                       <View style={{ ...col.wide, alignItems: 'flex-end' }}><Delta value={s.gainPct} size={14} /></View>
                       <Txt size={15} style={col.num}>{s.companies}</Txt>
                       <Txt size={15} style={col.num}>{s.trades}</Txt>
-                      <Txt size={15} style={col.num}>{s.progress?.level ?? '-'}</Txt>
+                      <Row gap={4} style={col.num}>{s.progress ? <Emblem level={s.progress.level} size={26} /> : null}<Txt size={15}>{s.progress?.level ?? '-'}</Txt></Row>
                       <Txt size={15} style={col.num}>{s.progress?.lessons ?? '-'}</Txt>
                       <Txt size={15} style={col.num}>{s.progress?.words ?? '-'}</Txt>
                       <Txt size={15} style={col.num}>{s.progress?.cards ?? '-'}</Txt>

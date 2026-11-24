@@ -1,8 +1,9 @@
 import { View } from 'react-native';
 
 import { LADDER, level, POINTS, useStore } from '@/lib/store';
+import { Emblem } from '@/ui/art';
 import { Avatar } from '@/ui/avatar';
-import { Bar, C, Card, Icon, Page, Row, Txt, type IconName } from '@/ui/kit';
+import { Bar, C, Card, Icon, Page, Row, Txt } from '@/ui/kit';
 
 /** The progress ladder: six rungs from Rookie to Tycoon, where you are on it, and what earns points. */
 export default function Ladder() {
@@ -14,6 +15,7 @@ export default function Ladder() {
       <Card>
         <Row gap={12}>
           <Avatar id={settings.avatar} name={settings.name} size={52} />
+          <Emblem level={lv.number} size={52} />
           <View style={{ flex: 1 }}>
             <Txt size={18} bold>{lv.name}</Txt>
             <Txt size={14} color={C.muted}>{lv.next ? `${lv.points} points · ${lv.next - lv.points} more to reach ${LADDER[here + 1].name}` : `${lv.points} points · you are at the top`}</Txt>
@@ -29,9 +31,9 @@ export default function Ladder() {
           return (
             <View key={rung.name} style={{ flexDirection: 'row', gap: 14 }}>
               {/* The rail of the ladder: a circle for the rung and a line down to the one below. */}
-              <View style={{ alignItems: 'center', width: 52 }}>
-                <View style={{ width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: reached ? C.accent : C.cardHi, borderWidth: current ? 4 : 0, borderColor: C.accentDim }}>
-                  <Icon name={rung.icon as IconName} size={24} color={reached ? C.onAccent : C.muted} />
+              <View style={{ alignItems: 'center', width: 72 }}>
+                <View style={{ borderRadius: 20, borderWidth: 3, borderColor: current ? C.accent : 'transparent', padding: 2 }}>
+                  <Emblem level={i + 1} size={62} dim={!reached} />
                 </View>
                 {i > 0 && <View style={{ width: 4, flex: 1, minHeight: 26, backgroundColor: i <= here ? C.accent : C.cardHi }} />}
               </View>
