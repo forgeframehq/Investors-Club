@@ -1,13 +1,17 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { F } from '@/lib/theme';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Polyline } from 'react-native-svg';
 
 import { SECTORS, STOCKS } from '@/data/stocks';
-import { ago, money, pct, signedMoney } from '@/lib/format';
-import { marketOpen, refreshQuotes, source } from '@/lib/market';
-import { dayChangePct, inClass, missionsDone, portfolio, streak, totalValue, useStore } from '@/lib/store';
+import { ago, fmtDayKey, money, pct, signedMoney } from '@/lib/format';
+import { loadHistory, loadMarkers, marketOpen, refreshQuotes, source } from '@/lib/market';
+import { dayChangePct, inClass, missionsDone, portfolio, stock, streak, toggleWatch, totalValue, useStore } from '@/lib/store';
+import type { HistoryPoint } from '@/lib/types';
+import { PriceChart } from '@/ui/chart';
+import { BermudaFlag } from '@/ui/flag';
 import { Avatar } from '@/ui/avatar';
 import { Btn, C, Card, Empty, Icon, IconBtn, Row, SearchField, TapCard, Tile, Txt, WIDE, type IconName } from '@/ui/kit';
 import { pick } from '@/ui/overlay';
@@ -21,7 +25,7 @@ function ChangeBlock({ value, width = 84 }: { value: number; width?: number }) {
   const flat = Math.abs(value) < 0.005;
   return (
     <View style={{ width, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: flat ? C.cardHi : value > 0 ? C.good : C.bad }}>
-      <Text style={{ color: flat ? C.muted : '#FFFFFF', fontSize: 15, fontWeight: '700' }}>{flat ? '0.00%' : pct(value)}</Text>
+      <Text style={{ fontFamily: F, color: flat ? C.muted : '#FFFFFF', fontSize: 15, fontWeight: '700' }}>{flat ? '0.00%' : pct(value)}</Text>
     </View>
   );
 }
@@ -36,6 +40,60 @@ function Spark({ values, color }: { values: number[]; color: string }) {
   return <Svg width={w} height={h}><Polyline points={points} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" /></Svg>;
 }
 
+/** Company value in plain short form: $3.97T, $812B, $640M. `millions` is how the data arrives. */
+function size(millions: number | undefined) {
+  if (!millions) return '-';
+  if (millions >= 1e6) return `$${(millions / 1e6).toFixed(2)}T`;
+  if (millions >= 1e3) return `$${(millions / 1e3).toFixed(millions >= 1e5 ? 0 : 1)}B`;
+  return `$${Math.round(millions)}M`;
+}
+
+function Fact({ title, value, color = C.text, align = 'flex-start' }: { title: string; value: string; color?: string; align?: 'flex-start' | 'center' | 'flex-end' }) {
+  return (
+    <View style={{ flex: 1, alignItems: align, gap: 2 }}>
+      <Txt size={12} color={C.muted} lines={1}>{title}</Txt>
+      <Txt size={15} bold color={color} lines={1}>{value}</Txt>
+    </View>
+  );
+}
+
+/** What opens under a stock when it is tapped: buttons, today's numbers, and the past month as a graph. */
+function Peek({ symbol, onTrade }: { symbol: string; onTrade: () => void }) {
+  const { quotes, markers, watch } = useStore();
+  const [points, setPoints] = useState<HistoryPoint[] | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let live = true;
+    loadMarkers(symbol);
+    loadHistory(symbol).then((pts) => live && setPoints(pts.slice(-22))).catch((e: Error) => live && setError(e.message));
+    return () => { live = false; };
+  }, [symbol]);
+  const q = quotes[symbol];
+  const watching = watch.includes(symbol);
+  const dollars = (v: number | undefined) => (v ? money(v) : '-');
+  return (
+    <View style={{ marginHorizontal: -16, paddingHorizontal: 16, paddingVertical: 14, gap: 14, backgroundColor: C.bar }}>
+      <Row gap={10}>
+        <Btn title={`Trade ${symbol}`} height={44} style={{ flex: 1 }} onPress={onTrade} />
+        <Btn title={watching ? 'Watching' : 'Watch'} icon={watching ? 'star' : 'star-outline'} kind="ghost" height={44} style={{ flex: 1 }} onPress={() => toggleWatch(symbol)} />
+      </Row>
+      <Row>
+        <Fact title="Today's high" value={dollars(q?.hi)} color={C.good} />
+        <Fact title="Today's low" value={dollars(q?.lo)} color={C.bad} align="center" />
+        <Fact title="Today's open" value={dollars(q?.open)} align="flex-end" />
+      </Row>
+      <Row>
+        <Fact title="Company size" value={size(markers[symbol]?.cap)} />
+        <Fact title="Group" value={stock(symbol).sector} align="center" />
+        <Fact title="Yesterday" value={dollars(q?.prev)} align="flex-end" />
+      </Row>
+      {points && points.length > 1
+        ? <PriceChart values={points.map((x) => x.c)} labels={points.map((x) => fmtDayKey(x.d))} height={150} />
+        : <Txt size={13} color={C.muted} center style={{ paddingVertical: 20 }}>{error || 'Drawing the past month...'}</Txt>}
+    </View>
+  );
+}
+
 function Shortcut({ icon, title, badge, onPress }: { icon: IconName; title: string; badge?: string; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Shortcut ${title}`} onPress={onPress} style={({ pressed }) => ({ width: 76, alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 })}>
@@ -43,7 +101,7 @@ function Shortcut({ icon, title, badge, onPress }: { icon: IconName; title: stri
         <Icon name={icon} size={26} />
         {!!badge && (
           <View style={{ position: 'absolute', top: -6, right: -10, backgroundColor: C.accent, borderRadius: 9, paddingHorizontal: 6, paddingVertical: 1 }}>
-            <Text style={{ color: C.onAccent, fontSize: 11, fontWeight: '700' }}>{badge}</Text>
+            <Text style={{ fontFamily: F, color: C.onAccent, fontSize: 11, fontWeight: '700' }}>{badge}</Text>
           </View>
         )}
       </View>
@@ -60,6 +118,7 @@ export default function Market() {
   const [filter, setFilter] = useState('All');
   const [sort, setSort] = useState<Sort>('By group');
   const [query, setQuery] = useState('');
+  const [peek, setPeek] = useState<string | null>(null);
   const src = source();
   const open = (symbol: string) => router.push(`/stock/${symbol}`);
 
@@ -102,7 +161,11 @@ export default function Market() {
           <TapCard bare label="Edit your profile" onPress={() => router.push('/profile')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
             <Avatar id={settings.avatar} name={settings.name} size={40} />
             <View style={{ flex: 1 }}>
-              <Txt size={17} bold lines={1}>{settings.name ? `Hi, ${settings.name}` : 'Investors Club'}</Txt>
+              <Row gap={6}>
+                <BermudaFlag width={20} />
+                <Txt size={11} bold color={C.muted} lines={1} style={{ letterSpacing: 0.6 }}>INVESTORS CLUB OF BERMUDA</Txt>
+              </Row>
+              <Txt size={17} bold lines={1}>{settings.name ? `Hi, ${settings.name}` : 'Welcome'}</Txt>
               <Row gap={6}>
                 <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: src === 'none' || net.error ? C.bad : marketOpen() ? C.good : C.muted }} />
                 <Txt size={12} color={C.muted} lines={1}>{src === 'none' ? 'Prices not set up' : net.error || `${marketOpen() ? 'Market open' : 'Market closed'}${net.at ? ` · updated ${ago(net.at)}` : ''}`}</Txt>
@@ -184,7 +247,7 @@ export default function Market() {
                 <Pressable key={f} accessibilityRole="button" accessibilityLabel={f} accessibilityState={{ selected: on }} onPress={() => setFilter(f)} style={{ paddingBottom: 10, minHeight: 40, justifyContent: 'flex-end', borderBottomWidth: 3, borderBottomColor: on ? C.accent : 'transparent' }}>
                   {f === 'Watchlist'
                     ? <Icon name={on ? 'star' : 'star-outline'} size={22} color={on ? C.accent : C.muted} />
-                    : <Text style={{ color: on ? C.text : C.muted, fontSize: 17, fontWeight: on ? '700' : '500' }}>{f}</Text>}
+                    : <Text style={{ fontFamily: F, color: on ? C.text : C.muted, fontSize: 17, fontWeight: on ? '700' : '500' }}>{f}</Text>}
                 </Pressable>
               );
             })}
@@ -198,7 +261,8 @@ export default function Market() {
           {list.map((s) => {
             const q = quotes[s.symbol];
             return (
-              <TapCard key={s.symbol} bare label={s.name} onPress={() => open(s.symbol)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64 }}>
+              <View key={s.symbol}>
+              <TapCard bare label={s.name} onPress={() => setPeek(peek === s.symbol ? null : s.symbol)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64 }}>
                 <Tile symbol={s.symbol} size={42} />
                 <View style={{ flex: 1, gap: 1 }}>
                   <Txt size={17} bold lines={1}>{s.symbol}</Txt>
@@ -211,6 +275,8 @@ export default function Market() {
                   </>
                 ) : <Txt size={14} color={C.muted}>No price yet</Txt>}
               </TapCard>
+              {peek === s.symbol && <Peek symbol={s.symbol} onTrade={() => open(s.symbol)} />}
+              </View>
             );
           })}
         </View>

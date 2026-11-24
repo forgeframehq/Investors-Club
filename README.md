@@ -16,10 +16,14 @@ pictures, never a photo), a reading level, and which portfolio to start with (cl
 
 Four tabs:
 
-- **Market** — a scrolling ticker, then the 35 stocks with logo, price and today's change. Filter by group, search, sort.
+- **Market** — the home screen: your portfolio value and today's change, shortcuts, the day's biggest rise and
+  fall, a scrolling ticker, then the 35 stocks with logo, price and a green or red change block. Tapping a stock
+  opens a peek under it (today's high, low and open, company size, and the past month as a graph) with a Trade
+  button. Filter by group, search, sort.
 - **Portfolio** — total value, gain since the start, your mix by group, holdings, badges, investor level, trades.
 - **Learn** — three daily missions with a streak, an up-or-down guessing game, six short lessons with quizzes,
-  flashcards (ten a round, the ones you miss come back first), and a 45-word glossary with each word explained at
+  flashcards (ten a round: pick the meaning from three and the card flips to show the answer; the ones you miss
+  come back first), and a 45-word glossary with each word explained at
   two reading levels.
 - **Class** — choose your school and class, then join with the class code from your teacher, a first name with
   last initial, and a PIN. Then the class leaderboard and a table of Bermuda schools by average change.

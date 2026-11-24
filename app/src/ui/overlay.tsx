@@ -1,5 +1,6 @@
 // Dialogs, bottom sheets and toasts with a promise API, so screens can write
 // `if (await confirm(...))` instead of juggling modal state.
+import { F } from '@/lib/theme';
 import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -127,7 +128,7 @@ export function OverlayHost() {
                       autoFocus
                       autoCapitalize={current.secure ? 'none' : 'sentences'}
                       onSubmitEditing={current.multiline ? undefined : () => done(text)}
-                      style={{ backgroundColor: C.cardHi, color: C.text, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, minHeight: current.multiline ? 120 : 48, maxHeight: 220, fontSize: 16, textAlignVertical: current.multiline ? 'top' : 'center' }}
+                      style={{ fontFamily: F, backgroundColor: C.cardHi, color: C.text, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, minHeight: current.multiline ? 120 : 48, maxHeight: 220, fontSize: 16, textAlignVertical: current.multiline ? 'top' : 'center' }}
                     />
                     <View style={{ height: 4 }} />
                     <Btn title={current.okText} onPress={() => done(text)} />
@@ -142,7 +143,7 @@ export function OverlayHost() {
       {note && (
         <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 96, alignItems: 'center' }}>
           <View style={{ backgroundColor: C.cardHi, borderRadius: 12, borderWidth: 1, borderColor: C.border, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '90%' }}>
-            <Text style={{ color: C.text, fontSize: 14 }}>{note.text}</Text>
+            <Text style={{ fontFamily: F, color: C.text, fontSize: 14 }}>{note.text}</Text>
           </View>
         </View>
       )}

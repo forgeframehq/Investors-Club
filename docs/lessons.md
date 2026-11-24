@@ -39,3 +39,14 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
 - **Reference: the Gate.io home screen.** Taken from it: total value with today's change at the top, a row of
   shortcut tiles, two mover cards, underlined group tabs, and rows of symbol, price and a solid change block.
   Not taken: its colours, icons, wording or products. Keep it that way with any reference app.
+
+## 2026-11-24 — Typeface, peek panel, live database
+
+- **The typeface is Inter, built in.** On Android the expo-font plugin in `app.json` embeds the files from
+  `@expo-google-fonts/inter` and maps the weights, so `fontFamily: F` plus a normal `fontWeight` works. In a
+  browser `lib/fonts.ts` adds the `@font-face` rules. Every `Text` and `TextInput` needs `fontFamily: F`; `Txt`
+  already has it. `npx expo install` cannot reach Expo's servers from a Claude session: use `npm install`.
+- **The class server is live now.** New columns go in `MIGRATIONS` in `backend/src/index.ts` (today's high, low
+  and open were the first). Never edit a `CREATE TABLE` line for a table that already exists.
+- **An "exact copy" of another app is not on offer.** Asked for Gate.io's look exactly, we took its layout ideas
+  (see the entry above) and a free typeface of a similar kind, not its design or font.

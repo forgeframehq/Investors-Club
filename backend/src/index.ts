@@ -46,8 +46,21 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS quotes (symbol TEXT PRIMARY KEY, price REAL NOT NULL, prev REAL NOT NULL, at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)`,
 ];
+// Columns added after the server first went live. Each is added once; the cache row remembers how far we got,
+// so a warm server pays one small read and a database that already has them is left alone.
+const MIGRATIONS = [
+  ['ALTER TABLE quotes ADD COLUMN hi REAL', 'ALTER TABLE quotes ADD COLUMN lo REAL', 'ALTER TABLE quotes ADD COLUMN open REAL'],
+];
+async function prepare(env: Env) {
+  await env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql)));
+  const row = await env.DB.prepare(`SELECT at FROM cache WHERE k = 'schema'`).first<{ at: number }>();
+  for (let i = row?.at ?? 0; i < MIGRATIONS.length; i++) {
+    for (const sql of MIGRATIONS[i]) await env.DB.prepare(sql).run().catch((e) => { if (!/duplicate column/i.test(String(e))) throw e; });
+    await env.DB.prepare(`INSERT INTO cache (k, v, at) VALUES ('schema', '', ?) ON CONFLICT(k) DO UPDATE SET at = excluded.at`).bind(i + 1).run();
+  }
+}
 let ready: Promise<unknown> | null = null;
-const ensure = (env: Env) => (ready ??= env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql))).catch((e) => { ready = null; throw e; }));
+const ensure = (env: Env) => (ready ??= prepare(env).catch((e) => { ready = null; throw e; }));
 
 // ---------- small helpers ----------
 
@@ -84,7 +97,8 @@ function seed(text: string) {
 const mockBase = (symbol: string) => Math.round((20 + seed(symbol) * 380) * 100) / 100;
 const mockQuote = (symbol: string): Quote => {
   const base = mockBase(symbol);
-  return { price: Math.round(base * (1 + (seed(symbol + 'x') - 0.4) * 0.05) * 100) / 100, prev: base, at: Date.now() };
+  const price = Math.round(base * (1 + (seed(symbol + 'x') - 0.4) * 0.05) * 100) / 100;
+  return { price, prev: base, at: Date.now(), hi: Math.round(Math.max(price, base) * 101) / 100, lo: Math.round(Math.min(price, base) * 99) / 100, open: base };
 };
 function mockHistory(symbol: string): HistoryPoint[] {
   const end = mockQuote(symbol).price;
@@ -116,8 +130,8 @@ const mockLogo = (symbol: string) => {
 async function getQuotes(env: Env, symbols: string[], opts: { single?: boolean } = {}): Promise<Record<string, Quote>> {
   const want = symbols.filter((s) => ALLOWED.has(s));
   if (env.MOCK_MARKET) return Object.fromEntries(want.map((s) => [s, mockQuote(s)]));
-  const rows = (await env.DB.prepare('SELECT symbol, price, prev, at FROM quotes').all<Quote & { symbol: string }>()).results;
-  const have = new Map(rows.map((r) => [r.symbol, { price: r.price, prev: r.prev, at: r.at } as Quote]));
+  const rows = (await env.DB.prepare('SELECT symbol, price, prev, at, hi, lo, open FROM quotes').all<Quote & { symbol: string }>()).results;
+  const have = new Map(rows.map((r) => [r.symbol, { price: r.price, prev: r.prev, at: r.at, ...(r.hi ? { hi: r.hi } : {}), ...(r.lo ? { lo: r.lo } : {}), ...(r.open ? { open: r.open } : {}) } as Quote]));
   const ttl = marketOpen() ? 60_000 : 15 * 60_000;
   const stale = want.filter((s) => Date.now() - (have.get(s)?.at ?? 0) > ttl);
   if (stale.length && env.FINNHUB_KEY) {
@@ -132,10 +146,10 @@ async function getQuotes(env: Env, symbols: string[], opts: { single?: boolean }
       const fresh = await Promise.allSettled(stale.map(async (s) => [s, await finnhubQuote(getJson, env.FINNHUB_KEY!, s)] as const));
       const got = fresh.flatMap((r) => (r.status === 'fulfilled' && r.value[1] ? [[r.value[0], r.value[1]] as const] : []));
       for (const [s, q] of got) have.set(s, q);
-      for (let i = 0; i < got.length; i += 20) {
-        const part = got.slice(i, i + 20);
-        await env.DB.prepare(`INSERT INTO quotes (symbol, price, prev, at) VALUES ${part.map(() => '(?,?,?,?)').join(',')} ON CONFLICT(symbol) DO UPDATE SET price = excluded.price, prev = excluded.prev, at = excluded.at`)
-          .bind(...part.flatMap(([s, q]) => [s, q.price, q.prev, q.at])).run();
+      for (let i = 0; i < got.length; i += 14) { // 7 values a row, and D1 binds at most 100 a statement
+        const part = got.slice(i, i + 14);
+        await env.DB.prepare(`INSERT INTO quotes (symbol, price, prev, at, hi, lo, open) VALUES ${part.map(() => '(?,?,?,?,?,?,?)').join(',')} ON CONFLICT(symbol) DO UPDATE SET price = excluded.price, prev = excluded.prev, at = excluded.at, hi = excluded.hi, lo = excluded.lo, open = excluded.open`)
+          .bind(...part.flatMap(([s, q]) => [s, q.price, q.prev, q.at, q.hi ?? null, q.lo ?? null, q.open ?? null])).run();
       }
     }
   }

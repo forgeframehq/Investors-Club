@@ -17,7 +17,15 @@ function deal(deck: Deck, cards: Record<string, number>): Term[] {
   return pool.slice(0, ROUND).map((x) => x.t).sort(() => Math.random() - 0.5);
 }
 
-/** Flashcards made from the glossary: see the word, guess what it means, flip the card to check. Works offline. */
+/** Three meanings to choose from: the right one and two from other words, in a random order. */
+function choices(card: Term): Term[] {
+  const others = TERMS.filter((t) => t.id !== card.id).sort(() => Math.random() - 0.5);
+  // Words from the same group make better wrong answers, so they go first.
+  const wrong = [...others.filter((t) => t.group === card.group), ...others.filter((t) => t.group !== card.group)].slice(0, 2);
+  return [card, ...wrong].sort(() => Math.random() - 0.5);
+}
+
+/** Flashcards made from the glossary: see the word, pick what it means, and the card flips to show the answer. Works offline. */
 export default function Flashcards() {
   const router = useRouter();
   const { learned, settings } = useStore();
@@ -25,15 +33,20 @@ export default function Flashcards() {
   const [cards, setCards] = useState<Term[] | null>(null);
   const [at, setAt] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [options, setOptions] = useState<Term[]>([]);
+  const [picked, setPicked] = useState<string | null>(null);
   const [missed, setMissed] = useState<Term[]>([]);
   const turn = useRef(new Animated.Value(1)).current;
   const celebrate = useRef<() => void>(() => {});
 
   const start = () => {
     celebrate.current = watchBadges();
-    setCards(deal(deck, learned.cards));
+    const dealt = deal(deck, learned.cards);
+    setCards(dealt);
     setAt(0);
     setFlipped(false);
+    setPicked(null);
+    setOptions(choices(dealt[0]));
     setMissed([]);
   };
   // The card squeezes shut, swaps sides, and opens again, which reads as a flip on Android and in a browser alike.
@@ -44,14 +57,25 @@ export default function Flashcards() {
       Animated.timing(turn, { toValue: 1, duration: 120, useNativeDriver: native }).start();
     });
   };
-  const answer = (knew: boolean) => {
+  // Picking an answer records it and flips the card to show the right meaning.
+  const choose = (id: string) => {
+    if (picked) return;
     const card = cards![at];
+    const knew = id === card.id;
+    setPicked(id);
     markCard(card.id, knew);
     markTerm(card.id);
     if (!knew) setMissed((m) => [...m, card]);
+    flip();
+  };
+  const next = () => {
+    const last = at + 1 >= cards!.length;
+    turn.setValue(1);
     setFlipped(false);
+    setPicked(null);
+    if (!last) setOptions(choices(cards![at + 1]));
     setAt(at + 1);
-    if (at + 1 >= cards!.length) {
+    if (last) {
       finishRound();
       celebrate.current();
       mission('cards');
@@ -69,7 +93,7 @@ export default function Flashcards() {
             <Txt size={18} bold style={{ flex: 1 }}>Flashcards</Txt>
             <Txt size={14} color={C.muted}>{cardsKnown()} of {TERMS.length} known</Txt>
           </Row>
-          <Txt size={15} color={C.muted}>You see a word. Say what it means in your head, then flip the card to check. Get a card right twice and it counts as known.</Txt>
+          <Txt size={15} color={C.muted}>You see a word. Pick what it means and the card flips to show the answer. Get a card right twice and it counts as known.</Txt>
         </Card>
         <Txt size={18} bold>Pick a deck</Txt>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -91,7 +115,7 @@ export default function Flashcards() {
       <Page>
         <Card style={{ alignItems: 'center', paddingVertical: 28 }}>
           <Icon name={missed.length ? 'thumbs-up-outline' : 'trophy-outline'} size={48} color={C.accent} />
-          <Txt size={24} bold center>You knew {right} of {cards.length}</Txt>
+          <Txt size={24} bold center>You got {right} of {cards.length}</Txt>
           <Txt size={15} color={C.muted} center>{missed.length ? 'The ones you missed will come back first next time.' : 'Every single one. Try another deck.'}</Txt>
         </Card>
         {missed.length > 0 && (
@@ -113,6 +137,8 @@ export default function Flashcards() {
   }
 
   const card = cards[at];
+  const meaning = (t: Term) => (settings.level === 'simple' ? t.simple : t.detailed);
+  const right = picked === card.id;
   return (
     <Page>
       <Row>
@@ -121,29 +147,42 @@ export default function Flashcards() {
       </Row>
       <Bar value={at / cards.length} height={6} />
       <Animated.View style={{ transform: [{ scaleX: turn }] }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Flashcard" onPress={flip}
-          style={{ minHeight: 300, borderRadius: 24, padding: 24, gap: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: flipped ? C.accentDim : C.card, borderWidth: 2, borderColor: flipped ? C.accent : C.border }}>
+        <View accessibilityLabel="Flashcard"
+          style={{ minHeight: 190, borderRadius: 24, padding: 22, gap: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: flipped ? (right ? C.goodDim : C.cardHi) : C.card, borderWidth: 2, borderColor: flipped ? (right ? C.good : C.bad) : C.border }}>
           {flipped ? (
             <>
-              <Txt size={15} bold color={C.accent} center>{card.word}</Txt>
-              <Txt size={20} center>{settings.level === 'simple' ? card.simple : card.detailed}</Txt>
+              <Row gap={8}>
+                <Icon name={right ? 'checkmark-circle' : 'close-circle'} color={right ? C.good : C.bad} />
+                <Txt size={17} bold color={right ? C.good : C.bad}>{right ? 'Correct!' : 'Not quite'}</Txt>
+              </Row>
+              <Txt size={15} bold color={C.muted} center>{card.word} means</Txt>
+              <Txt size={18} center>{meaning(card)}</Txt>
             </>
           ) : (
             <>
-              <Txt size={34} bold center>{card.word}</Txt>
-              <Txt size={15} color={C.muted} center>What does it mean? Tap to flip.</Txt>
+              <Txt size={32} bold center>{card.word}</Txt>
+              <Txt size={15} color={C.muted} center>What does it mean? Pick an answer.</Txt>
             </>
           )}
-        </Pressable>
+        </View>
       </Animated.View>
-      {flipped ? (
-        <Row>
-          <Btn title="Still learning" kind="ghost" icon="refresh" style={{ flex: 1 }} onPress={() => answer(false)} />
-          <Btn title="I knew it" icon="checkmark" style={{ flex: 1 }} onPress={() => answer(true)} />
-        </Row>
-      ) : (
-        <Btn title="Flip the card" kind="ghost" icon="sync-outline" onPress={flip} />
-      )}
+      {options.map((o, i) => {
+        const isRight = o.id === card.id;
+        const mine = picked === o.id;
+        const colour = !picked ? C.card : isRight ? C.good : mine ? C.bad : C.card;
+        return (
+          <Pressable key={o.id} accessibilityRole="button" accessibilityLabel={`Answer ${i + 1}`} disabled={!!picked} onPress={() => choose(o.id)}
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 14, padding: 14, borderWidth: 2, borderColor: colour, opacity: pressed ? 0.7 : picked && !isRight && !mine ? 0.5 : 1 })}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: C.cardHi, alignItems: 'center', justifyContent: 'center' }}>
+              {picked && (isRight || mine)
+                ? <Icon name={isRight ? 'checkmark' : 'close'} size={18} color={isRight ? C.good : C.bad} />
+                : <Txt size={14} bold>{'ABC'[i]}</Txt>}
+            </View>
+            <Txt size={15} style={{ flex: 1 }}>{meaning(o)}</Txt>
+          </Pressable>
+        );
+      })}
+      {!!picked && <Btn title={at + 1 >= cards.length ? 'See my score' : 'Next card'} icon="arrow-forward" onPress={next} />}
     </Page>
   );
 }

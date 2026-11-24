@@ -8,6 +8,7 @@ import { commit, db, START_CASH } from '@/lib/store';
 import type { Level } from '@/lib/types';
 
 import { Avatar, AvatarPicker } from './avatar';
+import { BermudaFlag } from './flag';
 import { Btn, C, Field, Icon, Row, TapCard, Txt, type IconName } from './kit';
 
 const STEPS = 4;
@@ -76,7 +77,11 @@ export function Welcome() {
             <View style={{ width: 76, height: 76, borderRadius: 24, backgroundColor: C.accentDim, alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="trending-up" size={42} color={C.accent} />
             </View>
-            <Txt size={32} bold>Welcome to Investors Club</Txt>
+            <Row gap={8}>
+              <BermudaFlag width={34} />
+              <Txt size={13} bold color={C.muted} style={{ letterSpacing: 0.6 }}>BERMUDA</Txt>
+            </Row>
+            <Txt size={32} bold>Welcome to Investors Club of Bermuda</Txt>
             <Txt size={16} color={C.muted}>Made for Bermuda schools. Learn how the stock market works by trying it yourself.</Txt>
             <View style={{ gap: 16, marginTop: 8 }}>
               <Point icon="cash-outline" title={`${money(START_CASH, false)} of pretend money`} body="Nothing here is real money, so it is safe to try things out." />

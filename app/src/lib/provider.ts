@@ -16,7 +16,11 @@ export async function finnhubQuote(get: GetJson, key: string, symbol: string): P
   const j = await get(`${FINNHUB}/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(key)}`);
   const price = num(j?.c);
   if (!price) return null; // Finnhub answers 0 for a symbol it does not know
-  return { price, prev: num(j.pc) || price, at: Date.now() };
+  const q: Quote = { price, prev: num(j.pc) || price, at: Date.now() };
+  if (num(j.h)) q.hi = j.h;
+  if (num(j.l)) q.lo = j.l;
+  if (num(j.o)) q.open = j.o;
+  return q;
 }
 
 export async function finnhubMarkers(get: GetJson, key: string, symbol: string): Promise<Markers> {

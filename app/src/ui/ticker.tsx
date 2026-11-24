@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { F } from '@/lib/theme';
 import { Animated, Easing, Platform, Pressable, Text, View } from 'react-native';
 
 import { money } from '@/lib/format';
@@ -33,10 +34,10 @@ export function Ticker({ items, onPress }: { items: TickerItem[]; onPress: (symb
         return (
           <Pressable key={it.symbol} accessibilityRole="button" accessibilityLabel={hidden ? undefined : `Ticker ${it.symbol}`} onPress={() => onPress(it.symbol)}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 40 }}>
-            <Text style={{ color: C.text, fontWeight: '700', fontSize: 13 }}>{it.symbol}</Text>
-            <Text style={{ color: C.muted, fontSize: 13 }}>{money(it.price)}</Text>
+            <Text style={{ fontFamily: F, color: C.text, fontWeight: '700', fontSize: 13 }}>{it.symbol}</Text>
+            <Text style={{ fontFamily: F, color: C.muted, fontSize: 13 }}>{money(it.price)}</Text>
             <Icon name={it.change >= 0 ? 'caret-up' : 'caret-down'} size={11} color={colour} />
-            <Text style={{ color: colour, fontSize: 13, fontWeight: '600' }}>{Math.abs(it.change).toFixed(2)}%</Text>
+            <Text style={{ fontFamily: F, color: colour, fontSize: 13, fontWeight: '600' }}>{Math.abs(it.change).toFixed(2)}%</Text>
           </Pressable>
         );
       })}

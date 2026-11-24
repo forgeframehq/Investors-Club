@@ -1,4 +1,7 @@
 // Colours. Everything reads C at render time, so changing the accent and remounting the screens re-themes the app.
+/** The app's typeface. On Android it is built into the app (see the expo-font plugin in app.json); in a browser lib/fonts.ts loads it. */
+export const F = 'Inter';
+
 export const ACCENTS = {
   Volt: { accent: '#C8F031', accentDim: '#2A3308', onAccent: '#141A00' },
   Mint: { accent: '#2EE6A6', accentDim: '#0A3024', onAccent: '#00241A' },

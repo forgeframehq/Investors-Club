@@ -6,12 +6,15 @@ import { AppState, View } from 'react-native';
 
 import { syncPortfolio } from '@/lib/classroom';
 import { loadLogos, probe, refreshQuotes } from '@/lib/market';
+import { loadWebFonts } from '@/lib/fonts';
 import { load, useStore } from '@/lib/store';
+import { F } from '@/lib/theme';
 import { C } from '@/ui/kit';
 import { OverlayHost } from '@/ui/overlay';
 import { Welcome } from '@/ui/welcome';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+loadWebFonts();
 
 export default function RootLayout() {
   const { ready, settings } = useStore();
@@ -45,7 +48,7 @@ export default function RootLayout() {
         screenOptions={{
           headerStyle: { backgroundColor: C.bar },
           headerTintColor: C.text,
-          headerTitleStyle: { fontWeight: '500', fontSize: 17 },
+          headerTitleStyle: { fontFamily: F, fontWeight: '600', fontSize: 17 },
           headerShadowVisible: false,
           headerBackButtonDisplayMode: 'minimal',
           contentStyle: { backgroundColor: C.bg },

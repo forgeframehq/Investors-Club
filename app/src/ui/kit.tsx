@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pct } from '@/lib/format';
 import { useStore } from '@/lib/store';
-import { C } from '@/lib/theme';
+import { C, F } from '@/lib/theme';
 
 export { C };
 
@@ -20,7 +20,7 @@ export function Txt({ children, size = 16, color = C.text, bold, center, lines, 
   children: React.ReactNode; size?: number; color?: string; bold?: boolean; center?: boolean; lines?: number; style?: StyleProp<TextStyle>;
 }) {
   return (
-    <Text numberOfLines={lines} style={[{ color, fontSize: size, lineHeight: Math.round(size * 1.35), fontWeight: bold ? '700' : '400', textAlign: center ? 'center' : undefined }, style]}>
+    <Text numberOfLines={lines} style={[{ fontFamily: F, color, fontSize: size, lineHeight: Math.round(size * 1.35), fontWeight: bold ? '700' : '400', textAlign: center ? 'center' : undefined }, style]}>
       {children}
     </Text>
   );
@@ -61,7 +61,7 @@ export function Btn({ title, onPress, kind = 'primary', icon, disabled, busy, le
       {busy ? <ActivityIndicator color={fg} /> : (
         <>
           {icon && <Icon name={icon} size={20} color={fg} />}
-          <Text numberOfLines={1} style={{ color: fg, fontSize: link ? 15 : 16, fontWeight: kind === 'primary' || kind === 'good' ? '700' : '500', flexShrink: 1 }}>{title}</Text>
+          <Text numberOfLines={1} style={{ fontFamily: F, color: fg, fontSize: link ? 15 : 16, fontWeight: kind === 'primary' || kind === 'good' ? '700' : '500', flexShrink: 1 }}>{title}</Text>
         </>
       )}
     </Pressable>
@@ -88,7 +88,7 @@ export function Chip({ title, selected, onPress }: { title: string; selected?: b
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ selected }} onPress={onPress}
       style={({ pressed }) => [s.chip, { backgroundColor: selected ? C.accent : C.cardHi, opacity: pressed ? 0.7 : 1 }]}>
-      <Text style={{ color: selected ? C.onAccent : C.text, fontSize: 14, fontWeight: '500' }}>{title}</Text>
+      <Text style={{ fontFamily: F, color: selected ? C.onAccent : C.text, fontSize: 14, fontWeight: '500' }}>{title}</Text>
     </Pressable>
   );
 }
@@ -111,7 +111,7 @@ export function SearchField(props: TextInputProps) {
   return (
     <View style={s.search}>
       <Icon name="search" size={20} color={C.muted} />
-      <TextInput placeholderTextColor={C.muted} selectionColor={C.accent} autoCorrect={false} returnKeyType="search" {...props} style={{ flex: 1, color: C.text, fontSize: 16, minHeight: 48, minWidth: 0 }} />
+      <TextInput placeholderTextColor={C.muted} selectionColor={C.accent} autoCorrect={false} returnKeyType="search" {...props} style={{ fontFamily: F, flex: 1, color: C.text, fontSize: 16, minHeight: 48, minWidth: 0 }} />
     </View>
   );
 }
@@ -164,7 +164,7 @@ export function Tile({ symbol, size = 46 }: { symbol: string; size?: number }) {
   const colour = TILE_COLOURS[h % TILE_COLOURS.length];
   return (
     <View style={{ width: size, height: size, borderRadius: size * 0.26, backgroundColor: `${colour}26`, borderWidth: 1, borderColor: `${colour}66`, alignItems: 'center', justifyContent: 'center' }}>
-      <Text numberOfLines={1} style={{ color: colour, fontWeight: '800', fontSize: size * (symbol.length > 4 ? 0.24 : symbol.length > 3 ? 0.27 : 0.31), letterSpacing: 0.3 }}>{symbol}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: F, color: colour, fontWeight: '800', fontSize: size * (symbol.length > 4 ? 0.24 : symbol.length > 3 ? 0.27 : 0.31), letterSpacing: 0.3 }}>{symbol}</Text>
     </View>
   );
 }
@@ -177,7 +177,7 @@ export function Delta({ value, size = 14, pill }: { value: number; size?: number
   return (
     <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 2 }, pill && { backgroundColor: `${colour}22`, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 }]}>
       {!flat && <Icon name={up ? 'caret-up' : 'caret-down'} size={size - 2} color={colour} />}
-      <Text style={{ color: colour, fontSize: size, fontWeight: '600' }}>{pct(value).replace(/^[+-]/, '')}</Text>
+      <Text style={{ fontFamily: F, color: colour, fontSize: size, fontWeight: '600' }}>{pct(value).replace(/^[+-]/, '')}</Text>
     </View>
   );
 }
@@ -235,7 +235,7 @@ export const s = StyleSheet.create({
   btn: { borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
   chip: { minHeight: 36, borderRadius: 18, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 10 },
-  field: { backgroundColor: C.card, color: C.text, borderRadius: 12, paddingHorizontal: 14, minHeight: 48, fontSize: 16, minWidth: 0 },
+  field: { fontFamily: F, backgroundColor: C.card, color: C.text, borderRadius: 12, paddingHorizontal: 14, minHeight: 48, fontSize: 16, minWidth: 0 },
   search: { backgroundColor: C.card, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  caption: { color: C.muted, fontSize: 12, letterSpacing: 0.4 },
+  caption: { fontFamily: F, color: C.muted, fontSize: 12, letterSpacing: 0.4 },
 });

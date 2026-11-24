@@ -56,7 +56,12 @@ function driver(p, errs) {
   check(/AAPL\s*\$\d/.test(t.replace(/\n/g, ' ')), 'the ticker tape shows symbols and prices');
   check(await tap('Bermuda'), 'filter by group'); t = await text();
   check(t.includes('RenaissanceRe') && t.includes('Arch Capital') && t.includes('Everest Group') && !t.includes('McDonald'), 'the Bermuda group shows the Bermuda bank and reinsurers only'); await shot('02-market-bermuda');
-  check(await tap('All') && await type('Search stocks', 'disn'), 'search'); await sleep(400);
+  check(await tap('All') && await tap('Apple'), 'tap a stock to peek at it'); await sleep(900); await shot('02-peek');
+  t = await text();
+  check(/Today's high/.test(t) && /Company size/.test(t) && /Trade AAPL/.test(t) && (await p.$$('svg path')).length >= 2, 'the peek shows today\'s numbers, the buttons and a graph');
+  check(await tap('Watch') && (await data()).watch.includes('AAPL') && await tap('Watching'), 'watch a stock from the peek');
+  await tap('Apple');
+  check(await type('Search stocks', 'disn'), 'search'); await sleep(400);
   check((await text()).includes('Disney') && !(await text()).includes('Coca-Cola'), 'search narrows the list');
 
   // ---- A stock: graph, markers, buying ----
@@ -114,10 +119,11 @@ function driver(p, errs) {
   await go('/learn');
   check(await tap('Play flashcards') && await tap('Start 10 cards'), 'start a round of flashcards'); await shot('13a-flashcard-front');
   check((await text()).includes('Card 1 of 10'), 'the round has ten cards');
+  check((await text()).includes('Pick an answer'), 'a flashcard asks you to pick the meaning');
   for (let i = 0; i < 10; i++) {
-    await tap('Flip the card'); await sleep(350);
-    if (i === 0) { await shot('13b-flashcard-back'); check(await tap('Still learning'), 'a card can be marked as still learning'); }
-    else await tap('I knew it');
+    await tap('Answer 1'); await sleep(450);
+    if (i === 0) { await shot('13b-flashcard-back'); check(/Correct!|Not quite/.test(await text()), 'picking an answer flips the card to show the right meaning'); }
+    await tap(i === 9 ? 'See my score' : 'Next card'); await sleep(150);
   }
   await sleep(600);
   // Several badges can arrive at once (reading ten words is one too), each in its own box.
@@ -126,9 +132,9 @@ function driver(p, errs) {
   check(seen.includes('Badge earned: Card Flipper'), 'finishing a round earns a badge');
   await shot('13c-flashcards-done');
   t = await text();
-  check(t.includes('You knew 9 of 10') && t.includes('Worth another look'), 'the round ends with a score and the missed card');
+  check(/You got \d+ of 10/.test(t), 'the round ends with a score');
   d = await data();
-  check(d.learned.rounds === 1 && Object.values(d.learned.cards).filter((n) => n === 1).length === 9, 'flashcard answers are saved');
+  check(d.learned.rounds === 1 && Object.keys(d.learned.cards).length === 10, 'flashcard answers are saved');
 
   // ---- Class: teacher makes an account and a class, student joins and trades ----
   await go('/teacher'); await shot('14-teacher-sign-in');

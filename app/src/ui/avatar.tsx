@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 
+import { F } from '@/lib/theme';
 import { AVATARS, avatar } from '@/data/avatars';
 
 import { C, Icon } from './kit';
@@ -13,7 +14,7 @@ export function Avatar({ id, name = '', size = 40 }: { id?: string; name?: strin
       {def
         ? <Icon name={def.icon} size={size * 0.52} color={colour} />
         : !name.trim() ? <Icon name="person" size={size * 0.5} color={C.muted} />
-        : <Text style={{ color: C.text, fontSize: size * 0.42, fontWeight: '700' }}>{(name.trim()[0] ?? '?').toUpperCase()}</Text>}
+        : <Text style={{ fontFamily: F, color: C.text, fontSize: size * 0.42, fontWeight: '700' }}>{(name.trim()[0] ?? '?').toUpperCase()}</Text>}
     </View>
   );
 }

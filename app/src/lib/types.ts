@@ -14,6 +14,10 @@ export interface Quote {
   prev: number;
   /** When the price was fetched (ms). */
   at: number;
+  /** Today's highest, lowest and opening price, when the data source gives them. */
+  hi?: number;
+  lo?: number;
+  open?: number;
 }
 
 export interface Holding {

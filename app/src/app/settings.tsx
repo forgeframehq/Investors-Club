@@ -57,7 +57,7 @@ export default function Settings() {
       </View>
 
       <Card>
-        <Txt size={15} bold>About Investors Club</Txt>
+        <Txt size={15} bold>About Investors Club of Bermuda</Txt>
         <Txt size={14} color={C.muted}>A stock market game for schools in Bermuda. All money here is pretend. Prices are real US market prices in US dollars and can be a few minutes behind. One Bermuda dollar is worth the same as one US dollar. Nothing in this app is advice to buy or sell real investments.</Txt>
       </Card>
     </Page>

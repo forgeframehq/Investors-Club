@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router/js-tabs';
 import type { ColorValue } from 'react-native';
 
 import { useStore } from '@/lib/store';
+import { F } from '@/lib/theme';
 import { C, type IconName } from '@/ui/kit';
 
 const icon = (name: IconName) =>
@@ -19,6 +20,7 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: C.bar, borderTopColor: C.bar },
         tabBarActiveTintColor: C.accent,
         tabBarInactiveTintColor: C.text,
+        tabBarLabelStyle: { fontFamily: F, fontWeight: '500' },
         sceneStyle: { backgroundColor: C.bg },
       }}>
       {/* Market is the index route so the app opens on it. */}
