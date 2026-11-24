@@ -18,3 +18,12 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
   they are not bundled. The app loads them from the address Finnhub gives and falls back to lettered tiles.
 - **The class server had never been deployed when teacher accounts were added,** so the tables were simply
   redefined. From now on it may be live: see "Changing the server's tables" in `CLAUDE.md`.
+
+## 2026-11-24 — Missions, the website on a laptop
+
+- **Anything a test cannot predict must not open a dialog.** Daily missions depend on the date, so finishing one
+  shows a toast, never a box that blocks the next tap. Only a new badge opens a box.
+- **Do the bookkeeping before `await`ing a dialog.** The lesson mission was recorded after the badge boxes were
+  closed, so closing the app with a box open lost it.
+- **One layout rule covers the website.** `Page` and the tab headers keep content in a 720-wide column
+  (`WIDE` in `ui/kit.tsx`); a screen that wants more, like the teacher's table, passes `max`.

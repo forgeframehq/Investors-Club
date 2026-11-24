@@ -4,7 +4,7 @@ import { Pressable, View } from 'react-native';
 
 import { lesson } from '@/data/lessons';
 import { finishLesson } from '@/lib/store';
-import { watchBadges } from '@/ui/celebrate';
+import { mission, watchBadges } from '@/ui/celebrate';
 import { Bar, Btn, C, Card, Empty, Icon, Page, Row, Txt } from '@/ui/kit';
 
 /** A lesson: a few cards to read, then a quiz. */
@@ -31,6 +31,7 @@ export default function LessonScreen() {
     if (step + 1 >= total) {
       const celebrate = watchBadges();
       finishLesson(l.id, newScore);
+      mission('lesson'); // before the badge boxes, so it counts even if the app is closed with one still open
       await celebrate();
     }
   };

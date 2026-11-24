@@ -96,6 +96,29 @@ export interface Progress {
   cards: number;
   badges: number;
   level: number;
+  /** Days in a row with every daily mission done. */
+  streak: number;
+}
+
+/** An up-or-down guess waiting for the price to move. */
+export interface Guess { day: string; symbol: string; price: number; pick: 'up' | 'down' }
+export interface GuessResult { symbol: string; pick: 'up' | 'down'; movePct: number; right: boolean }
+
+/** Daily missions and the up-or-down game. */
+export interface Play {
+  /** The day `done` belongs to (YYYY-MM-DD on this device). */
+  day: string;
+  /** Ids of today's missions that are finished. */
+  done: string[];
+  streak: number;
+  /** The last day every mission was done. */
+  lastFull: string;
+  /** How many days every mission was done, ever. */
+  fullDays: number;
+  guess: Guess | null;
+  lastResult: GuessResult | null;
+  right: number;
+  guesses: number;
 }
 
 export interface HistoryPoint { d: string; c: number }

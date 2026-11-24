@@ -8,7 +8,7 @@ import { serverUrl } from '@/lib/market';
 import { useStore } from '@/lib/store';
 import { Avatar } from '@/ui/avatar';
 import type { Standing } from '@/lib/types';
-import { Btn, C, Card, Delta, Empty, Field, Icon, Row, TabHeader, Txt } from '@/ui/kit';
+import { Btn, C, Card, Delta, Empty, Field, Icon, Row, TabHeader, Txt, WIDE } from '@/ui/kit';
 import { confirm, toast } from '@/ui/overlay';
 
 const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : Math.min(n % 10, 4) % 4]}`;
@@ -63,7 +63,7 @@ export default function ClassTab() {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <TabHeader title="Class" />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 12, paddingBottom: 28, gap: 14 }} keyboardShouldPersistTaps="handled"
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 12, paddingBottom: 28, gap: 14, ...WIDE }} keyboardShouldPersistTaps="handled"
         refreshControl={cls ? <RefreshControl refreshing={busy} onRefresh={refresh} tintColor={C.accent} colors={[C.accent]} progressBackgroundColor={C.card} /> : undefined}>
         {!cls && (
           <>

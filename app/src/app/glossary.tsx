@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 
 import { GROUPS, TERMS, type Term } from '@/data/glossary';
 import { markTerm, useStore } from '@/lib/store';
-import { watchBadges } from '@/ui/celebrate';
+import { mission, watchBadges } from '@/ui/celebrate';
 import { C, Empty, Icon, Page, Row, SearchField, Txt } from '@/ui/kit';
 
 /** Every investing word in the app, explained at two reading levels. Tap a word to open it. */
@@ -20,9 +20,11 @@ export default function Glossary() {
     setMore(false);
     if (open === t.id) return setOpen(null);
     setOpen(t.id);
+    const fresh = !learned.terms.includes(t.id);
     const celebrate = watchBadges();
     markTerm(t.id);
     celebrate();
+    if (fresh) mission('word');
   };
 
   return (

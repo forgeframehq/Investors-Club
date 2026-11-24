@@ -55,7 +55,7 @@ function driver(p, errs) {
   check(t.includes('Apple') && t.includes('Butterfield Bank') && /\$\d+\.\d\d/.test(t), 'Market lists the stocks with prices');
   check(/AAPL\s*\$\d/.test(t.replace(/\n/g, ' ')), 'the ticker tape shows symbols and prices');
   check(await tap('Bermuda'), 'filter by group'); t = await text();
-  check(t.includes('RenaissanceRe') && !t.includes('McDonald'), 'the Bermuda group shows only Bermuda companies'); await shot('02-market-bermuda');
+  check(t.includes('RenaissanceRe') && t.includes('Arch Capital') && t.includes('Everest Group') && !t.includes('McDonald'), 'the Bermuda group shows the Bermuda bank and reinsurers only'); await shot('02-market-bermuda');
   check(await tap('All') && await type('Search stocks', 'disn'), 'search'); await sleep(400);
   check((await text()).includes('Disney') && !(await text()).includes('Coca-Cola'), 'search narrows the list');
 
@@ -100,6 +100,15 @@ function driver(p, errs) {
   await go('/glossary');
   check(await tap('Word Dividend') && (await text()).includes('pocket money'), 'glossary explains a word simply'); await shot('13-glossary');
   check((await data()).learned.terms.includes('dividend'), 'the word is marked as read');
+
+  // ---- Daily missions and the up-or-down game ----
+  await go('/learn'); await shot('13-daily');
+  t = await text();
+  check(t.includes("Today's missions") && t.includes('in a row') && t.includes('Up or down?'), 'Learn shows the daily missions and the up-or-down game');
+  check(await tap('Up'), 'make an up-or-down guess'); await sleep(400);
+  d = await data();
+  check(d.play.guess && d.play.guess.pick === 'up' && (await text()).includes('Come back tomorrow'), 'the guess is saved until the price moves');
+  check(d.play.day && d.play.done.length >= 1 && d.play.done.length <= 3, 'things done today tick off the missions that ask for them');
 
   // ---- Flashcards ----
   await go('/learn');
@@ -167,6 +176,9 @@ function driver(p, errs) {
   t = await text();
   check(/bought .* of NTB/.test(t) && t.includes('Learning') && t.includes('Butterfield Bank'), "teacher sees the student's holdings, trades and learning");
   check(await tap('Most learned') && await tap('Name'), 'sort the students');
+  await p.setViewport({ width: 1366, height: 800, deviceScaleFactor: 1 }); await sleep(600); await shot('19-teacher-laptop');
+  check((await text()).includes('LAST ACTIVE'), 'on a laptop the students are shown as a table');
+  await p.setViewport({ width: 412, height: 915, deviceScaleFactor: 2 }); await sleep(300);
   const cls = await api(`/teacher/class?code=${code}`, null, teacherToken);
   const sam = cls.standings.find((x) => x.name === 'Sam T');
   check(sam && sam.holdings[0].symbol === 'NTB' && Math.abs(sam.cash - 8000) < 1, 'the class server holds the trade');

@@ -202,11 +202,11 @@ const nameKey = (name: string) => name.toLowerCase();
 const pinHash = (code: string, name: string, pin: string) => sha(`${code}:${nameKey(name)}:${pin}`);
 /** Avatars are ids from the app's built-in list, never uploaded pictures. */
 const cleanAvatar = (v: unknown) => (typeof v === 'string' && /^[a-z0-9-]{1,24}$/.test(v) ? v : '');
-/** Keeps only the five counts the teacher view shows, each within a sensible range. */
+/** Keeps only the counts the teacher view shows, each within a sensible range. */
 function cleanProgress(v: unknown): Progress | null {
   if (!v || typeof v !== 'object') return null;
   const n = (k: keyof Progress) => Math.max(0, Math.min(999, Math.round(Number((v as Record<string, unknown>)[k]) || 0)));
-  return { lessons: n('lessons'), words: n('words'), cards: n('cards'), badges: n('badges'), level: n('level') };
+  return { lessons: n('lessons'), words: n('words'), cards: n('cards'), badges: n('badges'), level: n('level'), streak: n('streak') };
 }
 const parseProgress = (text: string): Progress | null => { try { return text ? (JSON.parse(text) as Progress) : null; } catch { return null; } };
 

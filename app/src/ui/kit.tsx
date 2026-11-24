@@ -206,10 +206,13 @@ export function LinkRow({ icon, title, value, onPress }: { icon: IconName; title
   );
 }
 
-/** Scrolling page body with the standard padding. */
-export function Page({ children, gap = 14, pad = 16, bottom = 28 }: { children: React.ReactNode; gap?: number; pad?: number; bottom?: number }) {
+/** On a big screen (the website on a laptop) the content stays a comfortable column in the middle. */
+export const WIDE = { width: '100%', maxWidth: 720, alignSelf: 'center' } as const;
+
+/** Scrolling page body with the standard padding. `max` is the widest it grows on a big screen. */
+export function Page({ children, gap = 14, pad = 16, bottom = 28, max = WIDE.maxWidth }: { children: React.ReactNode; gap?: number; pad?: number; bottom?: number; max?: number }) {
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: pad, paddingTop: 12, paddingBottom: bottom, gap }} keyboardShouldPersistTaps="handled">
+    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: pad, paddingTop: 12, paddingBottom: bottom, gap, ...WIDE, maxWidth: max }} keyboardShouldPersistTaps="handled">
       {children}
     </ScrollView>
   );
@@ -219,9 +222,11 @@ export function Page({ children, gap = 14, pad = 16, bottom = 28 }: { children: 
 export function TabHeader({ title, children }: { title: string; children?: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ paddingTop: insets.top + 6, paddingHorizontal: 16, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, minHeight: insets.top + 58 }}>
-      <Txt size={28} bold style={{ flex: 1 }}>{title}</Txt>
-      {children}
+    <View style={{ paddingTop: insets.top + 6, backgroundColor: C.bg, minHeight: insets.top + 58 }}>
+      <View style={{ flex: 1, paddingHorizontal: 16, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', ...WIDE }}>
+        <Txt size={28} bold style={{ flex: 1 }}>{title}</Txt>
+        {children}
+      </View>
     </View>
   );
 }

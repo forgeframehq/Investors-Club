@@ -1,6 +1,6 @@
 # Investors Club
 
-A stock market game for schools in Bermuda. Students invest pretend money in 30 real companies at real prices,
+A stock market game for schools in Bermuda. Students invest pretend money in 35 real companies at real prices,
 read each stock's markers before choosing, learn the vocabulary, and compete on a class leaderboard.
 
 - `app/` — the app (React Native + Expo). One codebase gives the Android app and the website.
@@ -16,10 +16,11 @@ pictures, never a photo), a reading level, and which portfolio to start with (cl
 
 Four tabs:
 
-- **Market** — a scrolling ticker, then the 30 stocks with logo, price and today's change. Filter by group, search, sort.
+- **Market** — a scrolling ticker, then the 35 stocks with logo, price and today's change. Filter by group, search, sort.
 - **Portfolio** — total value, gain since the start, your mix by group, holdings, badges, investor level, trades.
-- **Learn** — six short lessons with quizzes, flashcards (ten a round, the ones you miss come back first), and a
-  45-word glossary with each word explained at two reading levels.
+- **Learn** — three daily missions with a streak, an up-or-down guessing game, six short lessons with quizzes,
+  flashcards (ten a round, the ones you miss come back first), and a 45-word glossary with each word explained at
+  two reading levels.
 - **Class** — join with a class code, a first name with last initial, and a PIN. Then the leaderboard.
 
 A stock's page shows what the company does, the price, a graph (1W / 1M / 3M / 1Y) and its **markers**: company
@@ -38,6 +39,28 @@ round, or delete a class. Signing in on another device shows the same classes.
 
 No email addresses anywhere: students are a name and a PIN inside one class, and a teacher is a sign-in name and
 a password. That also means a forgotten teacher password cannot be reset yet (see "Not built yet").
+
+### The stocks
+
+Thirty well-known companies and one fund, plus a Bermuda group: Butterfield Bank and the Bermuda reinsurers that
+trade on a US exchange (RenaissanceRe, Arch Capital, Everest Group, AXIS Capital, Hamilton Insurance, SiriusPoint).
+Other names with a big presence on the island have no share price to show: PartnerRe and Enstar are privately
+owned, and Aspen was bought by Sompo in February 2026 and delisted. The list is `app/src/data/stocks.ts`; every
+stock added costs one price request a minute, and the free Finnhub key allows 60.
+
+### Daily missions and the up-or-down game
+
+Every day has the same three missions for everyone (read a new word, finish a flashcard round, check your
+portfolio and so on). None of them is a trade. Doing all three keeps a streak going. The up-or-down game asks
+whether one stock will be higher or lower by the next visit and always shows the score beside "a coin gets about
+half", because the lesson is that one day cannot be predicted.
+
+### The website
+
+The same code is the website: everything in the Android app works in a browser, and on a laptop the teacher's
+class page becomes a table. It is served by the class server, so it goes live when that is deployed (below).
+Students open the address; teachers open the same address and choose "I am a teacher", or go straight to
+`/teacher`.
 
 ### Logos
 
@@ -94,7 +117,7 @@ data changes nothing. The trading rules are one file shared by app and server (`
 
 ## Code layout
 
-- `app/src/data/` — the 30 stocks, glossary, lessons, profile pictures, and how markers are worded.
+- `app/src/data/` — the 35 stocks, glossary, lessons, profile pictures, and how markers are worded.
 - `app/src/lib/store.ts` — everything saved on the device, portfolio maths, badges and levels.
 - `app/src/lib/market.ts` — picks the price source and caches what it fetches.
 - `app/src/lib/provider.ts`, `rules.ts` — shared with the server. Keep them free of React Native imports.

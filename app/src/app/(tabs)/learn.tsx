@@ -4,9 +4,10 @@ import { View } from 'react-native';
 import { TERMS } from '@/data/glossary';
 import { LESSONS } from '@/data/lessons';
 import { cardsKnown, level, useStore } from '@/lib/store';
+import { GuessCard, MissionsCard } from '@/ui/daily';
 import { Bar, C, Card, Icon, Page, Row, TabHeader, TapCard, Txt, type IconName } from '@/ui/kit';
 
-/** Lessons with quizzes, flashcards, and the glossary. Everything here works with no internet. */
+/** Daily missions, the up-or-down game, lessons with quizzes, flashcards, and the glossary. Everything here works with no internet. */
 export default function Learn() {
   const router = useRouter();
   const { learned } = useStore();
@@ -24,6 +25,9 @@ export default function Learn() {
           <Bar value={lv.progress} />
           <Txt size={13} color={C.muted}>Earn points by reading words, knowing flashcards, passing quizzes and collecting badges.</Txt>
         </Card>
+
+        <MissionsCard />
+        <GuessCard />
 
         <Txt size={18} bold>Lessons</Txt>
         {LESSONS.map((l) => {

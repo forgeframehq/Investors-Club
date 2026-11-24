@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 
 import { deleteClass, removeStudent, resetPin, restartClass, teacherClass } from '@/lib/classroom';
 import { ago, fmtDate, fmtShares, money } from '@/lib/format';
@@ -26,6 +26,8 @@ export default function TeacherClass() {
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // On a laptop the students are a table, one row each; on a phone they are cards.
+  const wide = useWindowDimensions().width >= 1000;
 
   const refresh = useCallback(async () => {
     if (!teacher || !code) return;
@@ -90,8 +92,44 @@ export default function TeacherClass() {
   for (const s of all) for (const h of s.holdings) held.set(h.symbol, (held.get(h.symbol) ?? 0) + 1);
   const popular = [...held.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 4);
 
+  const details = (s: StudentDetail) => (
+    <>
+      <Divider />
+      <Row gap={24}>
+        <Stat title="Cash" value={money(s.cash)} />
+        <Stat title="In stocks" value={money(s.value - s.cash)} />
+      </Row>
+      <Txt size={13} color={C.muted}>{s.seen ? `Last active ${ago(new Date(s.seen).getTime())}` : 'Has not opened the app since joining'}</Txt>
+
+      <Txt size={14} bold>Learning</Txt>
+      {s.progress
+        ? <Txt size={13} color={C.muted}>Level {s.progress.level} · {s.progress.lessons} {s.progress.lessons === 1 ? 'lesson' : 'lessons'} passed · {s.progress.words} words read · {s.progress.cards} flashcards known · {s.progress.badges} {s.progress.badges === 1 ? 'badge' : 'badges'} · {s.progress.streak ?? 0}-day mission streak</Txt>
+        : <Txt size={13} color={C.muted}>Nothing reported yet.</Txt>}
+
+      <Txt size={14} bold>Holdings</Txt>
+      {s.holdings.length === 0 && <Txt size={13} color={C.muted}>All in cash.</Txt>}
+      {s.holdings.map((h) => (
+        <Row key={h.symbol} gap={10}>
+          <Tile symbol={h.symbol} size={30} />
+          <Txt size={14} style={{ flex: 1 }} lines={1}>{stock(h.symbol).name}</Txt>
+          <Txt size={13} color={C.muted}>{fmtShares(h.shares)} · paid {money(h.cost)}</Txt>
+        </Row>
+      ))}
+
+      <Txt size={14} bold>Recent trades</Txt>
+      {s.recent.length === 0 && <Txt size={13} color={C.muted}>No trades yet.</Txt>}
+      {s.recent.map((t) => (
+        <Txt key={t.id} size={13} color={C.muted}>{fmtDate(t.at)} · {t.side === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)} of {t.symbol} at {money(t.price)}</Txt>
+      ))}
+      <Btn title={`Manage ${s.name}`} kind="ghost" height={42} style={wide ? { alignSelf: 'flex-start', paddingHorizontal: 24 } : undefined} onPress={() => manage(s)} />
+    </>
+  );
+  // Column widths for the table shown on a big screen.
+  const col = { num: { width: 64 }, wide: { width: 96 } } as const;
+  const head = (title: string, style: object) => <Txt size={12} color={C.muted} style={style}>{title.toUpperCase()}</Txt>;
+
   return (
-    <Page>
+    <Page max={wide ? 1180 : undefined}>
       <Stack.Screen options={{ title: cls?.name ?? 'Class' }} />
       <Card>
         <Txt size={13} color={C.muted}>Class code</Txt>
@@ -140,52 +178,51 @@ export default function TeacherClass() {
             {SORTS.map((x) => <Chip key={x} title={x} selected={sort === x} onPress={() => setSort(x)} />)}
           </View>
 
+          {wide && (
+            <Row gap={12} style={{ paddingHorizontal: 12 }}>
+              <View style={{ width: 40 }} />
+              {head('Student', { flex: 1 })}
+              {head('Value', { ...col.wide, textAlign: 'right' })}
+              {head('Change', { ...col.wide, textAlign: 'right' })}
+              {head('Stocks', col.num)}
+              {head('Trades', col.num)}
+              {head('Level', col.num)}
+              {head('Lessons', col.num)}
+              {head('Words', col.num)}
+              {head('Cards', col.num)}
+              {head('Last active', col.wide)}
+              <View style={{ width: 18 }} />
+            </Row>
+          )}
           {students.map((s) => (
             <Card key={s.id} style={{ padding: 12 }}>
               <Pressable accessibilityRole="button" accessibilityLabel={`Student ${s.name}`} onPress={() => setOpen(open === s.id ? null : s.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Avatar id={s.avatar} name={s.name} size={40} />
                 <View style={{ flex: 1 }}>
                   <Txt size={16} bold lines={1}>{s.name}</Txt>
-                  <Txt size={13} color={C.muted}>#{rank.get(s.id)} · {s.companies} {s.companies === 1 ? 'stock' : 'stocks'} · {s.trades} {s.trades === 1 ? 'trade' : 'trades'}</Txt>
+                  <Txt size={13} color={C.muted}>{wide ? `#${rank.get(s.id)}` : `#${rank.get(s.id)} · ${s.companies} ${s.companies === 1 ? 'stock' : 'stocks'} · ${s.trades} ${s.trades === 1 ? 'trade' : 'trades'}`}</Txt>
                 </View>
-                <View style={{ alignItems: 'flex-end', gap: 3 }}>
-                  <Txt size={16} bold>{money(s.value)}</Txt>
-                  <Delta value={s.gainPct} size={13} />
-                </View>
+                {wide ? (
+                  <>
+                    <Txt size={15} bold style={{ ...col.wide, textAlign: 'right' }}>{money(s.value)}</Txt>
+                    <View style={{ ...col.wide, alignItems: 'flex-end' }}><Delta value={s.gainPct} size={14} /></View>
+                    <Txt size={15} style={col.num}>{s.companies}</Txt>
+                    <Txt size={15} style={col.num}>{s.trades}</Txt>
+                    <Txt size={15} style={col.num}>{s.progress?.level ?? '-'}</Txt>
+                    <Txt size={15} style={col.num}>{s.progress?.lessons ?? '-'}</Txt>
+                    <Txt size={15} style={col.num}>{s.progress?.words ?? '-'}</Txt>
+                    <Txt size={15} style={col.num}>{s.progress?.cards ?? '-'}</Txt>
+                    <Txt size={14} color={C.muted} style={col.wide} lines={1}>{s.seen ? ago(new Date(s.seen).getTime()) : 'never'}</Txt>
+                  </>
+                ) : (
+                  <View style={{ alignItems: 'flex-end', gap: 3 }}>
+                    <Txt size={16} bold>{money(s.value)}</Txt>
+                    <Delta value={s.gainPct} size={13} />
+                  </View>
+                )}
                 <Icon name={open === s.id ? 'chevron-up' : 'chevron-down'} size={18} color={C.muted} />
               </Pressable>
-              {open === s.id && (
-                <>
-                  <Divider />
-                  <Row gap={24}>
-                    <Stat title="Cash" value={money(s.cash)} />
-                    <Stat title="In stocks" value={money(s.value - s.cash)} />
-                  </Row>
-                  <Txt size={13} color={C.muted}>{s.seen ? `Last active ${ago(new Date(s.seen).getTime())}` : 'Has not opened the app since joining'}</Txt>
-
-                  <Txt size={14} bold>Learning</Txt>
-                  {s.progress
-                    ? <Txt size={13} color={C.muted}>Level {s.progress.level} · {s.progress.lessons} {s.progress.lessons === 1 ? 'lesson' : 'lessons'} passed · {s.progress.words} words read · {s.progress.cards} flashcards known · {s.progress.badges} {s.progress.badges === 1 ? 'badge' : 'badges'}</Txt>
-                    : <Txt size={13} color={C.muted}>Nothing reported yet.</Txt>}
-
-                  <Txt size={14} bold>Holdings</Txt>
-                  {s.holdings.length === 0 && <Txt size={13} color={C.muted}>All in cash.</Txt>}
-                  {s.holdings.map((h) => (
-                    <Row key={h.symbol} gap={10}>
-                      <Tile symbol={h.symbol} size={30} />
-                      <Txt size={14} style={{ flex: 1 }} lines={1}>{stock(h.symbol).name}</Txt>
-                      <Txt size={13} color={C.muted}>{fmtShares(h.shares)} · paid {money(h.cost)}</Txt>
-                    </Row>
-                  ))}
-
-                  <Txt size={14} bold>Recent trades</Txt>
-                  {s.recent.length === 0 && <Txt size={13} color={C.muted}>No trades yet.</Txt>}
-                  {s.recent.map((t) => (
-                    <Txt key={t.id} size={13} color={C.muted}>{fmtDate(t.at)} · {t.side === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)} of {t.symbol} at {money(t.price)}</Txt>
-                  ))}
-                  <Btn title={`Manage ${s.name}`} kind="ghost" height={42} onPress={() => manage(s)} />
-                </>
-              )}
+              {open === s.id && details(s)}
             </Card>
           ))}
         </>

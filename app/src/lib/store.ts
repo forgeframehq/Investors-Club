@@ -10,10 +10,11 @@ import { dayKey } from './format';
 import { applyTrade } from './rules';
 import { readJson, writeJson } from './storage';
 import { applyAccent } from './theme';
-import type { ClassLink, HistoryPoint, Holding, Learned, Markers, Portfolio, Progress, Quote, Settings, Stock, TeacherLink } from './types';
+import type { ClassLink, HistoryPoint, Holding, Learned, Markers, Play, Portfolio, Progress, Quote, Settings, Stock, TeacherLink } from './types';
 
 export const START_CASH = 10000;
 export const newPortfolio = (start = START_CASH): Portfolio => ({ start, cash: start, holdings: [], trades: [], snapshots: [] });
+const newPlay = (): Play => ({ day: '', done: [], streak: 0, lastFull: '', fullDays: 0, guess: null, lastResult: null, right: 0, guesses: 0 });
 
 export const db = {
   ready: false,
@@ -27,6 +28,7 @@ export const db = {
   teacher: null as TeacherLink | null,
   watch: [] as string[],
   learned: { terms: [], lessons: {}, cards: {}, rounds: 0 } as Learned,
+  play: newPlay(),
   quotes: {} as Record<string, Quote>,
   /** Stock symbol -> address of the company's logo picture. Stocks without one show their letters instead. */
   logos: {} as Record<string, string>,
@@ -55,7 +57,7 @@ export function useStore() {
 }
 
 function save() {
-  writeJson('data', { settings: db.settings, solo: db.solo, cls: db.cls, classPortfolio: db.classPortfolio, teacher: db.teacher, watch: db.watch, learned: db.learned });
+  writeJson('data', { settings: db.settings, solo: db.solo, cls: db.cls, classPortfolio: db.classPortfolio, teacher: db.teacher, watch: db.watch, learned: db.learned, play: db.play });
 }
 export function commit() {
   save();
@@ -79,6 +81,7 @@ export async function load() {
     db.teacher = data.teacher ?? null;
     db.watch = data.watch ?? [];
     db.learned = { terms: data.learned?.terms ?? [], lessons: data.learned?.lessons ?? {}, cards: data.learned?.cards ?? {}, rounds: data.learned?.rounds ?? 0 };
+    db.play = { ...newPlay(), ...(data.play ?? {}) };
     // Someone who used the app before the welcome steps existed does not need to see them.
     if (!db.settings.onboarded && (db.solo.trades.length > 0 || db.cls || db.teacher || db.learned.terms.length > 0)) db.settings.onboarded = true;
   }
@@ -198,7 +201,83 @@ export function finishRound() {
 export const cardsKnown = () => TERMS.filter((t) => (db.learned.cards[t.id] ?? 0) >= CARD_KNOWN).length;
 const lessonsPassed = () => LESSONS.filter((l) => (db.learned.lessons[l.id] ?? 0) >= l.quiz.length).length;
 /** What this student has learned, as the class server and the teacher view show it. */
-export const progress = (): Progress => ({ lessons: lessonsPassed(), words: db.learned.terms.length, cards: cardsKnown(), badges: badges().filter((b) => b.earned).length, level: level().number });
+export const progress = (): Progress => ({ lessons: lessonsPassed(), words: db.learned.terms.length, cards: cardsKnown(), badges: badges().filter((b) => b.earned).length, level: level().number, streak: streak() });
+
+// ---------- daily missions ----------
+
+export interface Mission { id: string; title: string; icon: string; go: string }
+/** Small things to do each day. None of them is a trade: they reward looking, reading and learning. */
+export const MISSIONS: Mission[] = [
+  { id: 'word', title: 'Read a new word in the glossary', icon: 'book-outline', go: '/glossary' },
+  { id: 'cards', title: 'Finish a round of flashcards', icon: 'albums-outline', go: '/flashcards' },
+  { id: 'lesson', title: 'Take a lesson quiz', icon: 'school-outline', go: '/learn' },
+  { id: 'marker', title: 'Open a stock and tap one of its markers', icon: 'speedometer-outline', go: '/' },
+  { id: 'portfolio', title: 'Check how your portfolio is doing', icon: 'wallet-outline', go: '/portfolio' },
+  { id: 'guess', title: 'Make an up-or-down guess', icon: 'swap-vertical-outline', go: '/learn' },
+];
+const hash = (text: string) => { let h = 7; for (const c of text) h = (h * 31 + c.charCodeAt(0)) % 100003; return h; };
+const yesterday = () => dayKey(Date.now() - 86400000);
+
+/** Today's three missions. Everyone gets the same three on the same day, so a class can talk about them. */
+export function todaysMissions(day = dayKey()): Mission[] {
+  const start = hash(day) % MISSIONS.length;
+  const step = 1 + (hash(day + 'x') % 2); // 1 or 2, so the three are always different
+  return [0, 1, 2].map((i) => MISSIONS[(start + i * step) % MISSIONS.length]);
+}
+/** Mission ids finished today. */
+export const missionsDone = () => (db.play.day === dayKey() ? db.play.done : []);
+/** Days in a row with every mission done. Drops to 0 once a day is missed. */
+export const streak = () => (db.play.lastFull === dayKey() || db.play.lastFull === yesterday() ? db.play.streak : 0);
+
+/**
+ * Call when the student does something a mission might ask for. Returns 'one' if that finished a mission,
+ * 'all' if it finished the last of today's three, and '' if it was not a mission today or was already done.
+ */
+export function did(id: string): '' | 'one' | 'all' {
+  const today = dayKey();
+  if (db.play.day !== today) { db.play.day = today; db.play.done = []; }
+  const list = todaysMissions(today);
+  if (!list.some((m) => m.id === id) || db.play.done.includes(id)) return '';
+  db.play.done.push(id);
+  const all = list.every((m) => db.play.done.includes(m.id));
+  if (all) {
+    db.play.streak = db.play.lastFull === yesterday() ? db.play.streak + 1 : 1;
+    db.play.lastFull = today;
+    db.play.fullDays++;
+  }
+  commit();
+  return all ? 'all' : 'one';
+}
+
+// ---------- the up-or-down game ----------
+
+/** The stock everyone is asked about today. */
+export const guessStock = (day = dayKey()) => STOCKS[hash(day + 'g') % STOCKS.length];
+/** Records today's guess at the current price. Returns false if there is no price to guess from. */
+export function makeGuess(pick: 'up' | 'down'): boolean {
+  const s = guessStock();
+  const price = priceOf(s.symbol);
+  if (price === null) return false;
+  db.play.guess = { day: dayKey(), symbol: s.symbol, price, pick };
+  db.play.lastResult = null;
+  commit();
+  return true;
+}
+/** Once a newer price has arrived on a later day, works out whether the waiting guess was right. */
+export function settleGuess() {
+  const g = db.play.guess;
+  const q = g ? db.quotes[g.symbol] : undefined;
+  if (!g || !q || g.day >= dayKey() || dayKey(q.at) <= g.day) return;
+  const movePct = ((q.price - g.price) / g.price) * 100;
+  db.play.guess = null;
+  if (Math.abs(movePct) >= 0.005) { // a price that did not move at all is nobody's win
+    const right = movePct > 0 === (g.pick === 'up');
+    db.play.guesses++;
+    if (right) db.play.right++;
+    db.play.lastResult = { symbol: g.symbol, pick: g.pick, movePct, right };
+  }
+  commit();
+}
 
 export interface Badge { id: string; title: string; how: string; icon: string; earned: boolean }
 
@@ -220,6 +299,9 @@ export function badges(): Badge[] {
     b('word-10', 'Word Collector', 'Read 10 words in the glossary', 'book-outline', db.learned.terms.length >= 10),
     b('cards-round', 'Card Flipper', 'Finish a round of flashcards', 'albums-outline', db.learned.rounds >= 1),
     b('cards-20', 'Sharp Memory', 'Know 20 flashcards', 'flash-outline', cardsKnown() >= 20),
+    b('streak-3', 'On a Roll', 'Finish your daily missions 3 days in a row', 'flame-outline', db.play.streak >= 3),
+    b('streak-5', 'School Week', 'Finish your daily missions 5 days in a row', 'calendar-outline', db.play.streak >= 5),
+    b('guess-5', 'Crystal Ball', 'Make 5 up-or-down guesses', 'eye-outline', db.play.guesses >= 5),
     b('three-baskets', 'Three Baskets', 'Own stocks from 3 different groups', 'grid-outline', sectors.size >= 3),
     b('five-companies', 'Team Builder', 'Own 5 different stocks', 'people-outline', p.holdings.length >= 5),
     b('fund', 'Whole Market', 'Own a fund', 'globe-outline', p.holdings.some((h) => stock(h.symbol).sector === 'Funds')),
@@ -232,9 +314,9 @@ export function badges(): Badge[] {
 }
 
 const LEVELS = ['Rookie', 'Saver', 'Analyst', 'Strategist', 'Fund Manager', 'Tycoon'];
-/** Investor level from points: 10 per word read, 10 per flashcard known, 50 per lesson passed, 100 per badge. */
+/** Investor level from points: 10 per word read, 10 per flashcard known, 20 per day of missions, 50 per lesson passed, 100 per badge. */
 export function level() {
-  const points = db.learned.terms.length * 10 + cardsKnown() * 10 + lessonsPassed() * 50 + badges().filter((x) => x.earned).length * 100;
+  const points = db.learned.terms.length * 10 + cardsKnown() * 10 + db.play.fullDays * 20 + lessonsPassed() * 50 + badges().filter((x) => x.earned).length * 100;
   const steps = [0, 150, 400, 800, 1400, 2200];
   let i = 0;
   while (i < steps.length - 1 && points >= steps[i + 1]) i++;

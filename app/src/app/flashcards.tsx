@@ -4,7 +4,7 @@ import { Animated, Platform, Pressable, View } from 'react-native';
 
 import { GROUPS, TERMS, type Group, type Term } from '@/data/glossary';
 import { CARD_KNOWN, cardsKnown, finishRound, markCard, markTerm, useStore } from '@/lib/store';
-import { watchBadges } from '@/ui/celebrate';
+import { mission, watchBadges } from '@/ui/celebrate';
 import { Bar, Btn, C, Card, Chip, Icon, Page, Row, Txt } from '@/ui/kit';
 
 const ROUND = 10;
@@ -54,6 +54,7 @@ export default function Flashcards() {
     if (at + 1 >= cards!.length) {
       finishRound();
       celebrate.current();
+      mission('cards');
     }
   };
 

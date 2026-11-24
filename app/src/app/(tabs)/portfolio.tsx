@@ -1,4 +1,5 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import { View } from 'react-native';
 
 import { SECTORS } from '@/data/stocks';
@@ -6,6 +7,7 @@ import { fmtDate, fmtDayKey, fmtShares, money, pct, signedMoney } from '@/lib/fo
 import { badges, gainPct, holdingValue, inClass, investedValue, level, portfolio, stock, totalValue, useStore } from '@/lib/store';
 import { PriceChart } from '@/ui/chart';
 import { Avatar } from '@/ui/avatar';
+import { mission } from '@/ui/celebrate';
 import { Bar, Btn, C, Card, Delta, Divider, Empty, Icon, Page, Row, Stat, TabHeader, TapCard, Tile, Txt, type IconName } from '@/ui/kit';
 
 const MIX_COLOURS = ['#4CC2FF', '#2EE6A6', '#B79CFF', '#FFB454', '#FF7A90', '#7CE0E6', '#C8F031', '#FF9D5C', '#8E8E96'];
@@ -14,6 +16,7 @@ const MIX_COLOURS = ['#4CC2FF', '#2EE6A6', '#B79CFF', '#FFB454', '#FF7A90', '#7C
 export default function PortfolioTab() {
   const router = useRouter();
   const { cls, settings } = useStore();
+  useFocusEffect(useCallback(() => { mission('portfolio'); }, []));
   const p = portfolio();
   const total = totalValue(p);
   const gain = total - p.start;

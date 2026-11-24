@@ -121,7 +121,7 @@ const okLogo = (url: unknown): url is string => typeof url === 'string' && /^(ht
 let logosAt = 0;
 /**
  * Company logos for the stock tiles. The class server hands over every address it knows in one go. With your own
- * key there is no cheap way to ask for all 30, so each logo is fetched the first time its stock is opened.
+ * key there is no cheap way to ask for them all, so each logo is fetched the first time its stock is opened.
  * A stock with no logo keeps its lettered tile, so nothing here is needed for the app to work.
  */
 export async function loadLogos() {

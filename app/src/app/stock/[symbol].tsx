@@ -10,7 +10,7 @@ import { loadHistory, loadMarkers, refreshQuotes, source } from '@/lib/market';
 import { dayChangePct, holdingOf, holdingValue, markTerm, portfolio, stock, toggleWatch, useStore } from '@/lib/store';
 import type { HistoryPoint } from '@/lib/types';
 import { PriceChart } from '@/ui/chart';
-import { watchBadges } from '@/ui/celebrate';
+import { mission, watchBadges } from '@/ui/celebrate';
 import { Bar, Btn, C, Caption, Card, Chip, Delta, Empty, Icon, IconBtn, Page, Row, Stat, Tile, Txt } from '@/ui/kit';
 import { alertBox } from '@/ui/overlay';
 import { TradeSheet } from '@/ui/trade';
@@ -58,6 +58,7 @@ export default function StockScreen() {
     markTerm(t.id);
     await alertBox(t.word, `${settings.level === 'simple' ? t.simple : t.detailed}\n\n${s.name}: ${m.value}. ${m.hint}`);
     celebrate();
+    mission('marker');
   };
 
   return (

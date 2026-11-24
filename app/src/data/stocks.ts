@@ -1,4 +1,6 @@
-// The 30 stocks students choose from: companies they are likely to know, two with a Bermuda connection and one fund.
+// The stocks students choose from: companies they are likely to know, Bermuda's bank and the Bermuda reinsurers
+// that trade on a US exchange, and one fund. (Others with a big Bermuda presence, such as PartnerRe, Aspen and
+// Enstar, are privately owned, so they have no share price to show.)
 // Descriptions are written for this app. Keep the list at a size one free data key can refresh (see lib/market.ts).
 import type { Sector, Stock } from '@/lib/types';
 
@@ -43,6 +45,11 @@ export const STOCKS: Stock[] = [
 
   s('NTB', 'Butterfield Bank', 'Bermuda', 'A bank founded in Bermuda in 1858, with branches across the island.'),
   s('RNR', 'RenaissanceRe', 'Bermuda', 'A Bermuda reinsurer. It insures insurance companies against disasters such as hurricanes.'),
+  s('ACGL', 'Arch Capital', 'Bermuda', 'One of the biggest Bermuda insurers. It insures businesses and home loans, and reinsures other insurers.'),
+  s('EG', 'Everest Group', 'Bermuda', 'A Bermuda reinsurer. Insurance companies around the world pay it to share their biggest risks.'),
+  s('AXS', 'AXIS Capital', 'Bermuda', 'A Bermuda insurer for unusual risks such as ships, cyber attacks and big building projects. It reinsures too.'),
+  s('HG', 'Hamilton Insurance', 'Bermuda', 'A newer Bermuda insurer and reinsurer with its head office in Pembroke.'),
+  s('SPNT', 'SiriusPoint', 'Bermuda', 'A Bermuda insurer and reinsurer that also teams up with small specialist insurance businesses.'),
 
   s('SPY', 'S&P 500 fund (SPY)', 'Funds', 'One share owns a tiny piece of 500 of the largest US companies at once.'),
 ];

@@ -6,8 +6,9 @@ import { SECTORS, STOCKS } from '@/data/stocks';
 import { ago, money } from '@/lib/format';
 import { marketOpen, refreshQuotes, source } from '@/lib/market';
 import { dayChangePct, useStore } from '@/lib/store';
-import { Btn, C, Card, Chip, Delta, Empty, Icon, IconBtn, Row, SearchField, TabHeader, TapCard, Tile, Txt } from '@/ui/kit';
+import { Btn, C, Card, Chip, Delta, Empty, Icon, IconBtn, Row, SearchField, TabHeader, TapCard, Tile, Txt, WIDE } from '@/ui/kit';
 import { pick } from '@/ui/overlay';
+import { MissionsStrip } from '@/ui/daily';
 import { Ticker } from '@/ui/ticker';
 
 const SORTS = ['By group', 'Biggest rise today', 'Biggest fall today', 'Lowest price', 'Highest price', 'A to Z'] as const;
@@ -52,7 +53,7 @@ export default function Market() {
       <Ticker items={tape} onPress={open} />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingTop: 12, paddingBottom: 28, gap: 12 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 12, paddingBottom: 28, gap: 12, ...WIDE }}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={net.loading} onRefresh={() => refreshQuotes(true)} tintColor={C.accent} colors={[C.accent]} progressBackgroundColor={C.card} />}>
         {src === 'none' ? (
@@ -73,7 +74,8 @@ export default function Market() {
           </Row>
         )}
 
-        <SearchField placeholder="Search the 30 stocks" value={query} onChangeText={setQuery} accessibilityLabel="Search stocks" />
+        <MissionsStrip />
+        <SearchField placeholder={`Search the ${STOCKS.length} stocks`} value={query} onChangeText={setQuery} accessibilityLabel="Search stocks" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
           {['All', 'Watchlist', ...SECTORS].map((f) => <Chip key={f} title={f} selected={filter === f} onPress={() => setFilter(f)} />)}
         </ScrollView>
