@@ -45,21 +45,6 @@ export function MissionsCard() {
   );
 }
 
-/** One line on the Market tab that opens the missions. */
-export function MissionsStrip() {
-  const router = useRouter();
-  useStore();
-  const done = missionsDone().length;
-  return (
-    <TapCard label="Today's missions" onPress={() => router.push('/learn')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 }}>
-      <Icon name={done === 3 ? 'checkmark-circle' : 'flag-outline'} color={C.accent} />
-      <Txt size={15} bold style={{ flex: 1 }}>Today's missions: {done} of 3</Txt>
-      <Flame />
-      <Icon name="chevron-forward" size={18} color={C.muted} />
-    </TapCard>
-  );
-}
-
 /**
  * Up or down? One stock a day: guess which way the price goes before you next check in. The point it teaches is
  * that nobody can call one day reliably, so the score is always shown next to what a coin would get.

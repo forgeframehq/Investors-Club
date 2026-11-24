@@ -33,3 +33,9 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
 - **Cloudflare's Git builds ignore `build.command` in `wrangler.jsonc`.** It runs for `wrangler deploy` on a
   computer but not in Workers Builds, so the website would not be built. The build command
   (`node build-web.mjs`) has to be entered in the dashboard when importing the repo.
+
+## 2026-11-24 — Home screen in a trading-app layout
+
+- **Reference: the Gate.io home screen.** Taken from it: total value with today's change at the top, a row of
+  shortcut tiles, two mover cards, underlined group tabs, and rows of symbol, price and a solid change block.
+  Not taken: its colours, icons, wording or products. Keep it that way with any reference app.
