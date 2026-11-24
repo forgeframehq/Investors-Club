@@ -33,7 +33,7 @@ export default function Profile() {
       {!!cls && <Txt size={13} color={C.muted}>Your class knows you as {cls.name}. That name stays the same so you keep your class portfolio.</Txt>}
       <Txt size={18} bold>Picture</Txt>
       <Card>
-        <AvatarPicker value={settings.avatar} onChange={savePicture} />
+        <AvatarPicker value={settings.avatar} onChange={savePicture} level={lv.number} />
       </Card>
     </Page>
   );

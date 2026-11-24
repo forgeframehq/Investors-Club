@@ -41,11 +41,11 @@ function driver(p, errs) {
   // ---- Welcome: name, picture, reading level, portfolio ----
   await go('/'); await shot('00-welcome');
   check((await text()).includes('Welcome to Investors Club'), 'a new student sees the welcome steps');
-  check(await tap('Get started') && await type('Your first name', 'Sam') && await tap('Picture Planet'), 'choose a name and a picture'); await shot('00-welcome-profile');
+  check(await tap('Get started') && await type('Your first name', 'Sam') && await tap('Picture Turtle'), 'choose a name and a picture'); await shot('00-welcome-profile');
   check(await tap('Next') && await tap('Keep it simple') && await tap('Next'), 'choose a reading level'); await shot('00-welcome-portfolio');
   check(await tap('Practice portfolio'), 'choose the practice portfolio'); await sleep(500);
   let d = await data();
-  check(d.settings.onboarded && d.settings.name === 'Sam' && d.settings.avatar === 'planet', 'the profile is saved and the welcome steps do not come back');
+  check(d.settings.onboarded && d.settings.name === 'Sam' && d.settings.avatar === 'turtle', 'the profile is saved and the welcome steps do not come back');
 
   // ---- Market ----
   await go('/'); await shot('01-market');
@@ -184,7 +184,7 @@ function driver(p, errs) {
   t = await s.text();
   check(t.includes('Teacher area') && t.includes('What you get as a teacher') && !t.includes('Welcome to Investors Club'), 'the teacher address opens the teacher area, without the student welcome steps');
   await s.go('/');
-  check(await s.tap('Get started') && await s.type('Your first name', 'Sam') && await s.tap('Picture Gamer') && await s.tap('Next') && await s.tap('Next') && await s.tap('Class portfolio'), 'a new student chooses the class portfolio in the welcome steps'); await sleep(600); await s.shot('16-join');
+  check(await s.tap('Get started') && await s.type('Your first name', 'Sam') && await s.tap('Picture Robot') && await s.tap('Next') && await s.tap('Next') && await s.tap('Class portfolio'), 'a new student chooses the class portfolio in the welcome steps'); await sleep(600); await s.shot('16-join');
   check((await s.text()).includes('Join your class'), 'choosing the class portfolio opens the join form');
   check(await s.tap('Choose your school') && await s.tap('Warwick Academy') && await s.tap('Choose your class') && await s.tap('P6 Blue (Ms Smith)'), 'student chooses their school and class'); await s.shot('16-join-chosen');
   check(await s.type('Class code', code) && await s.type('Your name', 'Sam T') && await s.type('PIN', '1234') && await s.tap('Join class'), 'student joins with code, name and PIN'); await sleep(1200); await s.shot('17-leaderboard');
@@ -229,7 +229,7 @@ function driver(p, errs) {
   const cls = await api(`/teacher/class?code=${code}`, null, teacherToken);
   const sam = cls.standings.find((x) => x.name === 'Sam T');
   check(sam && sam.holdings[0].symbol === 'NTB' && Math.abs(sam.cash - 8000) < 1, 'the class server holds the trade');
-  check(sam && sam.avatar === 'gamer' && sam.progress && sam.progress.level >= 1 && !!sam.seen, "the class server knows the student's picture and learning");
+  check(sam && sam.avatar === 'robot' && sam.progress && sam.progress.level >= 1 && !!sam.seen, "the class server knows the student's picture and learning");
   const bad = await api(`/teacher/class?code=${code}`, null, 'nope');
   check(!!bad.error, 'the teacher view needs a signed-in teacher');
   const other2 = await api('/teacher/signup', { name: 'Mr Jones', school: 'Saltus Grammar School', login: 'mrjones', password: 'plums-and-figs' });

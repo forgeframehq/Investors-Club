@@ -51,7 +51,7 @@ export function Welcome() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [name, setName] = useState(db.settings.name);
-  const [pic, setPic] = useState(db.settings.avatar || 'rocket');
+  const [pic, setPic] = useState(db.settings.avatar || 'surfer');
   const [level, setLevel] = useState<Level>(db.settings.level);
 
   const finish = (go?: '/class' | '/teacher') => {
@@ -99,7 +99,8 @@ export function Welcome() {
               <Txt size={15} color={C.muted} center>Your first name is enough. Then pick a picture.</Txt>
             </View>
             <Field accessibilityLabel="Your first name" placeholder="First name, like Sam" value={name} onChangeText={setName} maxLength={20} autoCorrect={false} autoCapitalize="words" />
-            <AvatarPicker value={pic} onChange={setPic} />
+            <AvatarPicker value={pic} onChange={setPic} starterOnly />
+            <Txt size={13} color={C.muted} center>More characters unlock as you level up.</Txt>
           </>
         )}
 

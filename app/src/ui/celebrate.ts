@@ -13,7 +13,7 @@ export function watchBadges() {
     const fresh = badges().filter((b) => b.earned && !had.has(b.id));
     for (const b of fresh) await alertBox(`Badge earned: ${b.title}`, `${b.how}. Nice work!`);
     const now = level();
-    if (now.number > was) await alertBox(`Level ${now.number}: ${now.name}`, 'You moved up a level. Keep learning to reach the next one.');
+    if (now.number > was) await alertBox(`Level ${now.number}: ${now.name}`, now.number <= 4 ? 'You moved up a level, and new profile pictures are unlocked. Find them in your profile.' : 'You moved up a level. Keep learning to reach the next one.');
   };
 }
 

@@ -12,7 +12,7 @@ read each stock's markers before choosing, learn the vocabulary, and compete on 
 ## The app
 
 A new student starts with four welcome steps: what the app is, a first name and a picture (chosen from built-in
-pictures, never a photo), a reading level, and which portfolio to start with (class or practice).
+characters, never a photo; eight to start with and twelve more that unlock at investor levels 2, 3 and 4), a reading level, and which portfolio to start with (class or practice).
 
 Four tabs:
 
