@@ -27,3 +27,9 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
   closed, so closing the app with a box open lost it.
 - **One layout rule covers the website.** `Page` and the tab headers keep content in a 720-wide column
   (`WIDE` in `ui/kit.tsx`); a screen that wants more, like the teacher's table, passes `max`.
+
+## 2026-11-24 — Deploying the class server
+
+- **Cloudflare's Git builds ignore `build.command` in `wrangler.jsonc`.** It runs for `wrangler deploy` on a
+  computer but not in Workers Builds, so the website would not be built. The build command
+  (`node build-web.mjs`) has to be entered in the dashboard when importing the repo.

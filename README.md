@@ -97,10 +97,12 @@ The "Android APK" workflow builds on every push to `main` that touches `app/`. T
 
 ## The class server
 
-1. Deploy it. In the Cloudflare dashboard: Workers & Pages → Create → Import a repository → this repo, root
-   directory `backend`. The D1 database already exists (its id is in `backend/wrangler.jsonc`) and
-   the tables create themselves on first use. The deploy also builds the website, so the same address is the
-   web app.
+1. Deploy it. In the Cloudflare dashboard: Workers & Pages → Create application → Import a repository → this
+   repo. Set the project name to `investors-club` (it must match `name` in `backend/wrangler.jsonc`), the root
+   directory to `backend`, and the build command to `node build-web.mjs`. That command builds the website, so
+   the same address is the web app; Cloudflare's builds ignore the build command in `wrangler.jsonc`, so it has
+   to be typed in. The D1 database already exists (its id is in `backend/wrangler.jsonc`) and the tables create
+   themselves on first use.
 2. Add secrets (Worker → Settings → Variables and Secrets):
    - `FINNHUB_KEY` — prices and markers.
    - `TWELVE_KEY` — graphs.
