@@ -6,11 +6,11 @@ import { LESSONS } from '@/data/lessons';
 import { STOCKS } from '@/data/stocks';
 import { TERMS } from '@/data/glossary';
 
-import { dayKey } from './format';
-import { applyTrade } from './rules';
+import { dayKey, isoNow, newId } from './format';
+import { applyTrade, checkOrder, fillOrders } from './rules';
 import { readJson, writeJson } from './storage';
 import { applyAccent } from './theme';
-import type { ClassLink, HistoryPoint, Holding, Learned, Markers, Play, Portfolio, Progress, Quote, Settings, Stock, TeacherLink } from './types';
+import type { ClassLink, HistoryPoint, Holding, Learned, Markers, Order, Play, Portfolio, Progress, Quote, Settings, Stock, TeacherLink } from './types';
 
 export const START_CASH = 10000;
 export const newPortfolio = (start = START_CASH): Portfolio => ({ start, cash: start, holdings: [], trades: [], snapshots: [] });
@@ -35,7 +35,7 @@ export const db = {
   markers: {} as Record<string, Markers>,
   history: {} as Record<string, { at: number; points: HistoryPoint[] }>,
   /** State of the last price refresh, for the banner on the Market tab. */
-  net: { loading: false, error: '', at: 0 },
+  net: { loading: false, error: '', at: 0, open: null as boolean | null },
 };
 
 const bySymbol = new Map(STOCKS.map((s) => [s.symbol, s]));
@@ -132,6 +132,32 @@ export function tradeSolo(symbol: string, side: 'buy' | 'sell', shares: number, 
   snapshot();
   commit();
   return '';
+}
+
+/** Places a practice order to be filled when the market opens. Returns an error sentence, or '' when it is placed. */
+export function orderSolo(symbol: string, side: 'buy' | 'sell', amount: { shares?: number; dollars?: number }): string {
+  const problem = checkOrder(db.solo, { symbol, side, ...amount }, priceOf(symbol) ?? 0);
+  if (problem) return problem;
+  const order: Order = { id: newId(), symbol, side, ...amount, at: isoNow() };
+  db.solo = { ...db.solo, orders: [...(db.solo.orders ?? []), order] };
+  commit();
+  return '';
+}
+export function cancelSoloOrder(id: string) {
+  db.solo = { ...db.solo, orders: (db.solo.orders ?? []).filter((o) => o.id !== id) };
+  commit();
+}
+/**
+ * Fills waiting practice orders. Call when the market is open and prices have just been refreshed: only prices
+ * fetched in the last ten minutes count, so an overnight order is never filled at yesterday's price.
+ */
+export function settleSolo() {
+  if (!db.solo.orders?.length) return;
+  const { portfolio: next, filled } = fillOrders(db.solo, (symbol) => { const q = db.quotes[symbol]; return q && Date.now() - q.at < 10 * 60_000 ? q.price : null; });
+  if (next.orders?.length === db.solo.orders.length) return;
+  db.solo = next;
+  if (filled.length) snapshot();
+  commit();
 }
 
 /** Notes today's total value so the portfolio graph has one point per day. */

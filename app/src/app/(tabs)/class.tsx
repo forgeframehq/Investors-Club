@@ -37,7 +37,7 @@ export default function ClassTab() {
         await syncPortfolio();
         const board = await leaderboard();
         setRows(board.standings);
-        setRule(board.paused ? 'Your teacher has paused trading for now.' : board.hoursOnly ? 'Your class trades only while the market is open: 10:30 am to 5 pm, Monday to Friday.' : '');
+        setRule(board.paused ? 'Your teacher has paused trading for now.' : '');
       }
       setTable(await schools());
       setError('');

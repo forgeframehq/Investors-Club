@@ -87,6 +87,22 @@ function driver(p, errs) {
   d = await data();
   check(d.solo.trades.length === 2 && d.solo.cash > 9700, 'selling adds the cash back');
 
+  // ---- Market closed: orders wait and fill at the open ----
+  await api('/mock/market', { open: false });
+  await go('/'); await shot('07a-market-closed');
+  check(/market is closed/i.test(await text()), 'the home screen says when the market is closed');
+  await go('/stock/MSFT'); await sleep(600);
+  check(await tap('Buy') && /Place an order now|place an order now/i.test(await text()), 'when the market is closed the buy sheet explains that orders wait'); await shot('07b-order-sheet');
+  check(await type('Amount', '300') && await tap('Place buy order'), 'place an order for the open'); await sleep(700);
+  d = await data();
+  check(d.solo.orders.length === 1 && d.solo.orders[0].symbol === 'MSFT' && d.solo.orders[0].dollars === 300 && d.solo.trades.length === 2, 'the order waits; no trade happens yet');
+  await go('/portfolio'); await shot('07c-waiting-order');
+  check((await text()).includes('Waiting orders') && (await text()).includes('Microsoft'), 'the waiting order shows in the portfolio');
+  await api('/mock/market', { open: true });
+  await go('/'); await sleep(900);
+  d = await data();
+  check(d.solo.orders.length === 0 && d.solo.trades.length === 3 && d.solo.trades[0].symbol === 'MSFT', 'the order fills once the market opens');
+
   // ---- Portfolio ----
   await go('/portfolio'); await shot('08-portfolio');
   t = await text();
@@ -149,6 +165,16 @@ function driver(p, errs) {
   // A second student joins straight through the API so the leaderboard has someone to compare with.
   const other = await api('/join', { code, name: 'Alex R', pin: '4321' });
   await api('/trade', { symbol: 'DIS', side: 'buy', shares: 3 }, other.token);
+
+  // Class orders: the server holds them while the market is closed and fills them when it opens.
+  await api('/mock/market', { open: false });
+  check(/market is closed/i.test((await api('/trade', { symbol: 'KO', side: 'buy', shares: 1 }, other.token)).error || ''), 'the class server refuses trades while the market is closed');
+  const waiting = await api('/order', { symbol: 'KO', side: 'buy', dollars: 500 }, other.token);
+  check(waiting.portfolio && waiting.portfolio.orders.length === 1, 'a class order waits on the server');
+  check(/costs more/.test((await api('/order', { symbol: 'KO', side: 'buy', dollars: 999999 }, other.token)).error || ''), 'an order for more than your cash is refused');
+  await api('/mock/market', { open: true });
+  const filled = await api('/me', { progress: null }, other.token);
+  check(filled.portfolio.orders.length === 0 && filled.portfolio.holdings.some((h) => h.symbol === 'KO'), 'the class order is filled when the market opens');
 
   const ctx = await b.createBrowserContext();
   const sp = await ctx.newPage();

@@ -7,7 +7,7 @@ import Svg, { Polyline } from 'react-native-svg';
 
 import { SECTORS, STOCKS } from '@/data/stocks';
 import { ago, fmtDayKey, money, pct, signedMoney } from '@/lib/format';
-import { loadHistory, loadMarkers, marketOpen, nextOpenText, refreshQuotes, source } from '@/lib/market';
+import { isOpen, loadHistory, loadMarkers, nextOpenText, refreshQuotes, source } from '@/lib/market';
 import { dayChangePct, inClass, missionsDone, portfolio, stock, streak, toggleWatch, totalValue, useStore } from '@/lib/store';
 import type { HistoryPoint } from '@/lib/types';
 import { PriceChart } from '@/ui/chart';
@@ -167,8 +167,8 @@ export default function Market() {
               </Row>
               <Txt size={17} bold lines={1}>{settings.name ? `Hi, ${settings.name}` : 'Welcome'}</Txt>
               <Row gap={6}>
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: src === 'none' || net.error ? C.bad : marketOpen() ? C.good : C.muted }} />
-                <Txt size={12} color={C.muted} lines={1}>{src === 'none' ? 'Prices not set up' : net.error || `${marketOpen() ? 'Market open' : 'Market closed'}${net.at ? ` · updated ${ago(net.at)}` : ''}`}</Txt>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: src === 'none' || net.error ? C.bad : isOpen() ? C.good : C.muted }} />
+                <Txt size={12} color={C.muted} lines={1}>{src === 'none' ? 'Prices not set up' : net.error || `${isOpen() ? 'Market open' : 'Market closed'}${net.at ? ` · updated ${ago(net.at)}` : ''}`}</Txt>
               </Row>
             </View>
           </TapCard>
@@ -193,10 +193,10 @@ export default function Market() {
           </Card>
         )}
 
-        {src !== 'none' && !marketOpen() && (
+        {src !== 'none' && !isOpen() && (
           <Row gap={10} style={{ backgroundColor: C.accentDim, borderRadius: 12, padding: 12 }}>
             <Icon name="moon-outline" size={20} color={C.accent} />
-            <Txt size={13} style={{ flex: 1 }}>{nextOpenText()} Until then you see the last prices.</Txt>
+            <Txt size={13} style={{ flex: 1 }}>{nextOpenText()} Until then you see the last prices, and any order you place waits for the open.</Txt>
           </Row>
         )}
 

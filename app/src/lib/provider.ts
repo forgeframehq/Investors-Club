@@ -66,6 +66,8 @@ const HOLIDAYS = new Set([
   '2026-11-26', '2026-12-25',
   '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18', '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24',
 ]);
+/** Days the markets shut early, at 1 pm New York time (2 pm in Bermuda). */
+const EARLY = new Set(['2026-11-27', '2026-12-24', '2027-11-26']);
 /** The date in New York as YYYY-MM-DD. */
 function newYorkDay(now: Date): string {
   try {
@@ -86,7 +88,7 @@ export function marketOpen(now = new Date()): boolean {
     const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
     const day = get('weekday');
     const minutes = (Number(get('hour')) % 24) * 60 + Number(get('minute'));
-    return day !== 'Sat' && day !== 'Sun' && minutes >= 570 && minutes < 960;
+    return day !== 'Sat' && day !== 'Sun' && minutes >= 570 && minutes < (EARLY.has(newYorkDay(now)) ? 780 : 960);
   } catch {
     const day = now.getUTCDay();
     const minutes = now.getUTCHours() * 60 + now.getUTCMinutes();
@@ -94,9 +96,13 @@ export function marketOpen(now = new Date()): boolean {
   }
 }
 
-/** A sentence saying when the market next opens, in Bermuda time. Checked in ten-minute steps for up to a week. */
-export function nextOpenText(now = new Date()): string {
-  if (marketOpen(now)) return 'The market is open until 5 pm Bermuda time.';
+/**
+ * A sentence saying when the market next opens, in Bermuda time. Checked in ten-minute steps for up to a week.
+ * `open` is whether trading is open now; it differs from the clock only in tests.
+ */
+export function nextOpenText(now = new Date(), open = marketOpen(now)): string {
+  if (!open && marketOpen(now)) return 'The market is closed.';
+  if (open) return `The market is open until ${EARLY.has(newYorkDay(now)) ? '2 pm' : '5 pm'} Bermuda time.`;
   for (let t = now.getTime(), end = t + 8 * 86400000; t < end; t += 600000) {
     const at = new Date(t);
     if (!marketOpen(at)) continue;

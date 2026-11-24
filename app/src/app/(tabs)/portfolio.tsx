@@ -4,8 +4,10 @@ import { View } from 'react-native';
 
 import { SECTORS } from '@/data/stocks';
 import { fmtDate, fmtDayKey, fmtShares, money, pct, signedMoney } from '@/lib/format';
-import { badges, gainPct, holdingValue, inClass, investedValue, level, portfolio, stock, totalValue, useStore } from '@/lib/store';
+import { badges, gainPct, holdingValue, inClass, investedValue, level, portfolio, stock, totalValue, useStore, cancelSoloOrder } from '@/lib/store';
 import { PriceChart } from '@/ui/chart';
+import { cancelClassOrder } from '@/lib/classroom';
+import { nextOpenText } from '@/lib/market';
 import { Avatar } from '@/ui/avatar';
 import { mission } from '@/ui/celebrate';
 import { Bar, Btn, C, Card, Delta, Divider, Empty, Icon, Page, Row, Stat, TabHeader, TapCard, Tile, Txt, type IconName } from '@/ui/kit';
@@ -114,6 +116,31 @@ export default function PortfolioTab() {
                 </TapCard>
               );
             })}
+          </>
+        )}
+
+        {((p.orders?.length ?? 0) > 0 || (p.notes?.length ?? 0) > 0) && (
+          <>
+            <Txt size={18} bold>Waiting orders</Txt>
+            <Card>
+              {(p.orders?.length ?? 0) > 0 && <Txt size={13} color={C.muted}>{nextOpenText()} These are filled at the first price after it opens.</Txt>}
+              {p.orders?.map((o) => (
+                <Row key={o.id} gap={10}>
+                  <Icon name="time-outline" size={20} color={C.warm} />
+                  <View style={{ flex: 1 }}>
+                    <Txt size={15}>{o.side === 'buy' ? 'Buy' : 'Sell'} {o.dollars !== undefined ? `${money(o.dollars)} of` : `${fmtShares(o.shares ?? 0)} of`} {stock(o.symbol).name}</Txt>
+                    <Txt size={12} color={C.muted}>Placed {fmtDate(o.at, true)}</Txt>
+                  </View>
+                  <Btn title="Cancel order" kind="text" height={36} onPress={() => (inClass() ? cancelClassOrder(o.id).catch(() => {}) : cancelSoloOrder(o.id))} />
+                </Row>
+              ))}
+              {p.notes?.map((n) => (
+                <Row key={n.id} gap={10} style={{ alignItems: 'flex-start' }}>
+                  <Icon name="alert-circle-outline" size={20} color={C.bad} />
+                  <Txt size={13} color={C.muted} style={{ flex: 1 }}>Your order to {n.side} {stock(n.symbol).name} did not go through. {n.why}</Txt>
+                </Row>
+              ))}
+            </Card>
           </>
         )}
 

@@ -7,8 +7,8 @@
 import { SCHOOLS } from '../../app/src/data/schools';
 import { STOCKS } from '../../app/src/data/stocks';
 import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, nextOpenText, twelveHistory, type GetJson } from '../../app/src/lib/provider';
-import { applyTrade, roundShares } from '../../app/src/lib/rules';
-import type { HistoryPoint, Holding, Markers, Progress, Quote, Trade } from '../../app/src/lib/types';
+import { applyTrade, checkOrder, fillOrders, roundShares } from '../../app/src/lib/rules';
+import type { HistoryPoint, Holding, Markers, Order, OrderNote, Progress, Quote, Trade } from '../../app/src/lib/types';
 
 interface Env {
   DB: D1Database;
@@ -43,6 +43,8 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS holdings (student_id TEXT NOT NULL, symbol TEXT NOT NULL, shares REAL NOT NULL, cost REAL NOT NULL, PRIMARY KEY (student_id, symbol))`,
   `CREATE TABLE IF NOT EXISTS trades (id TEXT PRIMARY KEY, student_id TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, shares REAL NOT NULL, price REAL NOT NULL, at TEXT NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS trades_student ON trades (student_id, at)`,
+  `CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, student_id TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, shares REAL, dollars REAL, status TEXT NOT NULL DEFAULT 'waiting', note TEXT NOT NULL DEFAULT '', at TEXT NOT NULL, done_at TEXT NOT NULL DEFAULT '')`,
+  `CREATE INDEX IF NOT EXISTS orders_student ON orders (student_id, status)`,
   `CREATE TABLE IF NOT EXISTS quotes (symbol TEXT PRIMARY KEY, price REAL NOT NULL, prev REAL NOT NULL, at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)`,
 ];
@@ -123,6 +125,11 @@ const mockLogo = (symbol: string) => {
   return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="hsl(${hue},70%,45%)"/></svg>`)}`;
 };
 
+/** Tests can shut the made-up market to try orders that wait for it to open. */
+let mockOpen = true;
+/** Whether students can trade right now. Real trading hours, except in tests. */
+const isOpen = (env: Env) => (env.MOCK_MARKET ? mockOpen : marketOpen());
+
 // ---------- prices ----------
 
 /**
@@ -199,6 +206,7 @@ async function getLogos(env: Env): Promise<Record<string, string>> {
 async function warm(env: Env) {
   await ensure(env);
   if (env.FINNHUB_KEY) await getQuotes(env, SYMBOLS);
+  await settleAll(env);
   const rows = (await env.DB.prepare('SELECT k, at FROM cache').all<{ k: string; at: number }>()).results;
   const at = new Map(rows.map((r) => [r.k, r.at]));
   const oldest = (prefix: string, ttl: number, count: number) =>
@@ -231,11 +239,70 @@ function cleanProgress(v: unknown): Progress | null {
 const parseProgress = (text: string): Progress | null => { try { return text ? (JSON.parse(text) as Progress) : null; } catch { return null; } };
 
 async function loadPortfolio(env: Env, student: StudentRow, startCash: number) {
-  const [holdings, trades] = await env.DB.batch([
+  const [holdings, trades, orders, notes] = await env.DB.batch([
     env.DB.prepare('SELECT symbol, shares, cost FROM holdings WHERE student_id = ? ORDER BY symbol').bind(student.id),
     env.DB.prepare('SELECT id, symbol, side, shares, price, at FROM trades WHERE student_id = ? ORDER BY at DESC, rowid DESC LIMIT 100').bind(student.id),
+    env.DB.prepare(`SELECT id, symbol, side, shares, dollars, at FROM orders WHERE student_id = ? AND status = 'waiting' ORDER BY at, rowid`).bind(student.id),
+    env.DB.prepare(`SELECT id, symbol, side, note AS why, done_at AS at FROM orders WHERE student_id = ? AND status = 'dropped' ORDER BY done_at DESC LIMIT 5`).bind(student.id),
   ]);
-  return { start: startCash, cash: student.cash, holdings: holdings.results as unknown as Holding[], trades: trades.results as unknown as Trade[] };
+  const waiting = (orders.results as unknown as (Order & { shares: number | null; dollars: number | null })[]).map((o) => ({ id: o.id, symbol: o.symbol, side: o.side, at: o.at, ...(o.shares ? { shares: o.shares } : {}), ...(o.dollars ? { dollars: o.dollars } : {}) }) as Order);
+  return { start: startCash, cash: student.cash, holdings: holdings.results as unknown as Holding[], trades: trades.results as unknown as Trade[], orders: waiting, notes: notes.results as unknown as OrderNote[] };
+}
+type ServerPortfolio = Awaited<ReturnType<typeof loadPortfolio>>;
+
+/**
+ * Writes a portfolio that changed through trades. The stamp makes the whole change apply once or not at all,
+ * even if two requests arrive together. `extra` statements run only if the change applies.
+ */
+async function savePortfolio(env: Env, student: StudentRow, after: ServerPortfolio, newTrades: Trade[], extra: (guard: string, bind: [string, string]) => D1PreparedStatement[] = () => []) {
+  const stamp = random(12);
+  const guard = '(SELECT stamp FROM students WHERE id = ?) = ?';
+  const bind: [string, string] = [student.id, stamp];
+  const touched = [...new Set(newTrades.map((t) => t.symbol))];
+  const results = await env.DB.batch([
+    env.DB.prepare('UPDATE students SET cash = ?, stamp = ?, seen = ? WHERE id = ? AND stamp = ?').bind(after.cash, stamp, now(), student.id, student.stamp),
+    ...touched.map((symbol) => {
+      const holding = after.holdings.find((h) => h.symbol === symbol);
+      return holding
+        ? env.DB.prepare(`INSERT INTO holdings (student_id, symbol, shares, cost) SELECT ?,?,?,? WHERE ${guard} ON CONFLICT(student_id, symbol) DO UPDATE SET shares = excluded.shares, cost = excluded.cost`).bind(student.id, symbol, holding.shares, holding.cost, ...bind)
+        : env.DB.prepare(`DELETE FROM holdings WHERE student_id = ? AND symbol = ? AND ${guard}`).bind(student.id, symbol, ...bind);
+    }),
+    ...newTrades.map((t) => env.DB.prepare(`INSERT INTO trades (id, student_id, symbol, side, shares, price, at) SELECT ?,?,?,?,?,?,? WHERE ${guard}`).bind(t.id, student.id, t.symbol, t.side, t.shares, t.price, t.at, ...bind)),
+    ...extra(guard, bind),
+  ]);
+  if (results[0].meta.changes !== 1) throw new Problem(409, 'That did not go through. Try again.');
+  student.stamp = stamp;
+  student.cash = after.cash;
+}
+
+/**
+ * Fills a student's waiting orders if the market is open and trading is not paused. Only prices fetched in the
+ * last ten minutes count, so an order placed overnight is never filled at yesterday's price.
+ */
+async function settle(env: Env, student: StudentRow, cls: ClassRow): Promise<ServerPortfolio> {
+  const before = await loadPortfolio(env, student, cls.start_cash);
+  if (!before.orders.length || cls.paused || !isOpen(env)) return before;
+  const quotes = await getQuotes(env, [...new Set(before.orders.map((o) => o.symbol))]);
+  const { portfolio: after, filled } = fillOrders(before, (symbol) => (quotes[symbol] && Date.now() - quotes[symbol].at < 10 * 60_000 ? quotes[symbol].price : null));
+  const dropped = after.notes.filter((n) => !before.notes.some((x) => x.id === n.id));
+  const done = before.orders.filter((o) => !after.orders.some((x) => x.id === o.id) && !dropped.some((n) => n.id === o.id));
+  if (!done.length && !dropped.length) return before;
+  await savePortfolio(env, student, after, filled, (guard, bind) => [
+    ...done.map((o) => env.DB.prepare(`UPDATE orders SET status = 'filled', done_at = ? WHERE id = ? AND ${guard}`).bind(now(), o.id, ...bind)),
+    ...dropped.map((n) => env.DB.prepare(`UPDATE orders SET status = 'dropped', note = ?, done_at = ? WHERE id = ? AND ${guard}`).bind(n.why, n.at, n.id, ...bind)),
+  ]);
+  return { ...after, trades: after.trades.slice(0, 100) };
+}
+/** Timer job: fills waiting orders for everyone once the market is open. */
+async function settleAll(env: Env) {
+  if (!isOpen(env)) return;
+  const rows = (await env.DB.prepare(`SELECT DISTINCT s.* FROM orders o JOIN students s ON s.id = o.student_id WHERE o.status = 'waiting' AND s.removed = 0 LIMIT 60`).all<StudentRow>()).results;
+  const classes = new Map<string, ClassRow | null>();
+  for (const student of rows) {
+    if (!classes.has(student.class_code)) classes.set(student.class_code, await env.DB.prepare('SELECT * FROM classes WHERE code = ?').bind(student.class_code).first<ClassRow>());
+    const cls = classes.get(student.class_code);
+    if (cls) await settle(env, student, cls).catch((e) => console.error('settle', student.id, e));
+  }
 }
 
 async function studentFromToken(env: Env, req: Request): Promise<{ student: StudentRow; cls: ClassRow }> {
@@ -311,7 +378,11 @@ async function route(req: Request, env: Env): Promise<Response> {
 
   if (path === '/quotes') {
     const symbols = (url.searchParams.get('symbols') ?? '').toUpperCase().split(',').filter(Boolean);
-    return json({ quotes: await getQuotes(env, symbols.length ? symbols : SYMBOLS, { single: symbols.length === 1 }), open: marketOpen() });
+    return json({ quotes: await getQuotes(env, symbols.length ? symbols : SYMBOLS, { single: symbols.length === 1 }), open: isOpen(env) });
+  }
+  if (path === '/mock/market' && post && env.MOCK_MARKET) {
+    mockOpen = !!body.open;
+    return json({ open: mockOpen });
   }
   if (path === '/markers') return json({ markers: await getMarkers(env, one()) });
   if (path === '/logos') return json({ logos: await getLogos(env) });
@@ -386,7 +457,7 @@ async function route(req: Request, env: Env): Promise<Response> {
       const progress = cleanProgress(body.progress);
       await env.DB.prepare('UPDATE students SET avatar = ?, progress = ?, seen = ? WHERE id = ?').bind(cleanAvatar(body.avatar) || student.avatar, progress ? JSON.stringify(progress) : '', now(), student.id).run();
     }
-    return json({ name: student.name, class: { code: cls.code, name: cls.name }, portfolio: await loadPortfolio(env, student, cls.start_cash) });
+    return json({ name: student.name, class: { code: cls.code, name: cls.name }, portfolio: await settle(env, student, cls) });
   }
 
   if (path === '/trade' && post) {
@@ -396,26 +467,37 @@ async function route(req: Request, env: Env): Promise<Response> {
     const shares = roundShares(Number(body.shares));
     if (!ALLOWED.has(symbol)) throw new Problem(404, 'That stock is not in the Investors Club list.');
     if (cls.paused) throw new Problem(403, 'Your teacher has paused trading for this class. Your portfolio is safe. Try again later.');
-    if (cls.hours_only && !marketOpen() && !env.MOCK_MARKET) throw new Problem(403, `${nextOpenText()} Your class trades only while the market is open.`);
+    if (!isOpen(env)) throw new Problem(403, `${nextOpenText(new Date(), false)} Place an order and it will be filled when the market opens.`);
     const quote = (await getQuotes(env, [symbol], { single: true }))[symbol];
     if (!quote) throw new Problem(503, 'There is no price for this stock right now. Try again in a minute.');
     const before = await loadPortfolio(env, student, cls.start_cash);
     const after = applyTrade(before, symbol, side, shares, quote.price);
     if (typeof after === 'string') throw new Problem(400, after);
-    const trade = after.trades[0];
-    const holding = after.holdings.find((h) => h.symbol === symbol);
-    // The stamp makes the whole trade apply once or not at all, even if two requests arrive together.
-    const stamp = random(12);
-    const guard = '(SELECT stamp FROM students WHERE id = ?) = ?';
-    const results = await env.DB.batch([
-      env.DB.prepare('UPDATE students SET cash = ?, stamp = ?, seen = ? WHERE id = ? AND stamp = ?').bind(after.cash, stamp, now(), student.id, student.stamp),
-      holding
-        ? env.DB.prepare(`INSERT INTO holdings (student_id, symbol, shares, cost) SELECT ?,?,?,? WHERE ${guard} ON CONFLICT(student_id, symbol) DO UPDATE SET shares = excluded.shares, cost = excluded.cost`).bind(student.id, symbol, holding.shares, holding.cost, student.id, stamp)
-        : env.DB.prepare(`DELETE FROM holdings WHERE student_id = ? AND symbol = ? AND ${guard}`).bind(student.id, symbol, student.id, stamp),
-      env.DB.prepare(`INSERT INTO trades (id, student_id, symbol, side, shares, price, at) SELECT ?,?,?,?,?,?,? WHERE ${guard}`).bind(trade.id, student.id, symbol, side, trade.shares, trade.price, trade.at, student.id, stamp),
-    ]);
-    if (results[0].meta.changes !== 1) throw new Problem(409, 'That did not go through. Try again.');
-    return json({ trade, quote, portfolio: { ...after, trades: after.trades.slice(0, 100) } });
+    await savePortfolio(env, student, after, [after.trades[0]]);
+    return json({ trade: after.trades[0], quote, portfolio: { ...after, trades: after.trades.slice(0, 100) } });
+  }
+
+  // An order placed while the market is closed. It waits and is filled at the first price after the market opens.
+  if (path === '/order' && post) {
+    const { student, cls } = await studentFromToken(env, req);
+    const symbol = String(body.symbol ?? '').toUpperCase();
+    const side = body.side === 'sell' ? 'sell' : 'buy';
+    if (!ALLOWED.has(symbol)) throw new Problem(404, 'That stock is not in the Investors Club list.');
+    if (cls.paused) throw new Problem(403, 'Your teacher has paused trading for this class. Your portfolio is safe. Try again later.');
+    if (isOpen(env)) throw new Problem(409, 'The market is open now, so you can trade straight away.');
+    const dollars = side === 'buy' && body.dollars !== undefined ? Math.round(Number(body.dollars) * 100) / 100 : undefined;
+    const shares = dollars === undefined ? roundShares(Number(body.shares)) : undefined;
+    const last = (await getQuotes(env, [symbol]))[symbol]?.price ?? 0;
+    const before = await loadPortfolio(env, student, cls.start_cash);
+    const problem = checkOrder(before, { symbol, side, shares, dollars }, last);
+    if (problem) throw new Problem(400, problem);
+    await env.DB.prepare('INSERT INTO orders (id, student_id, symbol, side, shares, dollars, at) VALUES (?,?,?,?,?,?,?)').bind(random(16), student.id, symbol, side, shares ?? null, dollars ?? null, now()).run();
+    return json({ portfolio: await loadPortfolio(env, student, cls.start_cash) });
+  }
+  if (path === '/order/cancel' && post) {
+    const { student, cls } = await studentFromToken(env, req);
+    await env.DB.prepare(`DELETE FROM orders WHERE id = ? AND student_id = ? AND status = 'waiting'`).bind(String(body.id ?? ''), student.id).run();
+    return json({ portfolio: await loadPortfolio(env, student, cls.start_cash) });
   }
 
   if (path === '/leaderboard') {
@@ -519,6 +601,7 @@ async function route(req: Request, env: Env): Promise<Response> {
       await env.DB.batch([
         env.DB.prepare(`DELETE FROM holdings WHERE ${inClass}`).bind(cls.code),
         env.DB.prepare(`DELETE FROM trades WHERE ${inClass}`).bind(cls.code),
+        env.DB.prepare(`DELETE FROM orders WHERE ${inClass}`).bind(cls.code),
         env.DB.prepare(`UPDATE students SET cash = ?, stamp = '' WHERE class_code = ?`).bind(cls.start_cash, cls.code),
       ]);
       return json({ ok: true });
@@ -528,6 +611,7 @@ async function route(req: Request, env: Env): Promise<Response> {
         env.DB.prepare(`DELETE FROM holdings WHERE ${inClass}`).bind(cls.code),
         env.DB.prepare(`DELETE FROM trades WHERE ${inClass}`).bind(cls.code),
         env.DB.prepare(`DELETE FROM sessions WHERE ${inClass}`).bind(cls.code),
+        env.DB.prepare(`DELETE FROM orders WHERE ${inClass}`).bind(cls.code),
         env.DB.prepare('DELETE FROM students WHERE class_code = ?').bind(cls.code),
         env.DB.prepare('DELETE FROM classes WHERE code = ?').bind(cls.code),
       ]);

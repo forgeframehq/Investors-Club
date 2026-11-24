@@ -67,3 +67,13 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
   changes, and creating the file counts as a change, so it is only created when an APK is wanted.
 - **Bermuda and New York change their clocks on the same days**, so market hours are 10:30 am to 5 pm Bermuda
   time all year and can be written as fixed text.
+
+## 2026-11-24 — Real market hours and waiting orders
+
+- **"Is the market open" has one answer per place.** The server decides for a class (`isOpen` in the server,
+  `/api/quotes` returns `open`), and the app uses that when it has a server, the device clock otherwise.
+  Anything that words the answer must be given that same value, or a test with a shut made-up market says
+  "open until 5 pm" because the real clock says so.
+- **Never fill an order at a stale price.** Orders fill only from prices fetched in the last ten minutes while
+  the market is open, in both `settle` (server) and `settleSolo` (device).
+- **Tests shut the made-up market with `POST /api/mock/market`**, which exists only when `MOCK_MARKET` is set.

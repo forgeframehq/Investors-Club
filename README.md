@@ -49,47 +49,22 @@ who has almost everything in one stock). **Students**: the sortable list or tabl
 on the website. **Activity**: the class's latest trades. **Settings**: pause trading, allow trading only while
 the market is open, rename, new round, delete.
 
-### Trading hours
+### Trading hours and orders
 
-The US markets (NYSE and Nasdaq) are open 9:30 am to 4 pm New York time on weekdays, which is 10:30 am to 5 pm
-in Bermuda all year, and shut on the holidays listed in `app/src/lib/provider.ts` (update that list yearly).
-When the market is closed the home screen says when it next opens. By default students can still trade then,
-at the last price, because most of them are free after school. A teacher can switch a class to trade in market
-hours only.
+Trading follows the real US markets (NYSE and Nasdaq): 9:30 am to 4 pm New York time on weekdays, which is
+10:30 am to 5 pm in Bermuda all year, shut on market holidays and closing at 1 pm New York time (2 pm Bermuda)
+on the early-close days. The dates are in `app/src/lib/provider.ts`; update them each year from the NYSE calendar.
 
-To hand a device to someone else, or to demo a fresh login, use Settings → Start over as a new student. It
-clears that device only; a class portfolio stays on the class server.
+While the market is open, a trade happens straight away at the current price. While it is closed, a student
+places an **order** instead. Orders wait (up to ten per student, shown under "Waiting orders" on the Portfolio
+tab, where they can be cancelled) and are filled at the first price after the market opens, which can differ from
+the last price they saw, exactly as with a real broker. An order that can no longer happen (the price rose past
+the student's cash) is dropped with a note saying why. In a class the server holds and fills the orders, on its
+ten-minute timer or the next time the student opens the app; in practice mode the device does.
 
-No email addresses anywhere: students are a name and a PIN inside one class, and a teacher is a sign-in name and
-a password. That also means a forgotten teacher password cannot be reset yet (see "Not built yet").
-
-### Schools
-
-Teachers pick their school from the list in `app/src/data/schools.ts` (or type it if it is missing). Students
-only see schools that have a class. The schools table shows averages only: no student or class is named. The
-public system is being reorganised, so check the list each school year.
-
-### The stocks
-
-Thirty well-known companies and one fund, plus a Bermuda group: Butterfield Bank and the Bermuda reinsurers that
-trade on a US exchange (RenaissanceRe, Arch Capital, Everest Group, AXIS Capital, Hamilton Insurance, SiriusPoint).
-Other names with a big presence on the island have no share price to show: PartnerRe and Enstar are privately
-owned, and Aspen was bought by Sompo in February 2026 and delisted. The list is `app/src/data/stocks.ts`; every
-stock added costs one price request a minute, and the free Finnhub key allows 60.
-
-### Daily missions and the up-or-down game
-
-Every day has the same three missions for everyone (read a new word, finish a flashcard round, check your
-portfolio and so on). None of them is a trade. Doing all three keeps a streak going. The up-or-down game asks
-whether one stock will be higher or lower by the next visit and always shows the score beside "a coin gets about
-half", because the lesson is that one day cannot be predicted.
-
-### The website
-
-The same code is the website: everything in the Android app works in a browser, and on a laptop the teacher's
-class page becomes a table. It is served by the class server, so it goes live when that is deployed (below).
-Students open the address; teachers open the same address and choose "I am a teacher", or go straight to
-`/teacher`.
+What is still simpler than the real thing: no trading fees, fractions of a share are allowed, there are only
+market orders (no limit or stop orders), no pre-market or after-hours trading, and prices can be up to a minute
+old.
 
 ### Logos
 

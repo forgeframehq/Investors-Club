@@ -36,12 +36,29 @@ export interface Trade {
   at: string; // ISO UTC
 }
 
+/** A buy or sell placed while the market was closed. It is filled at the first price after the market opens. */
+export interface Order {
+  id: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  /** Either a number of shares, or a number of dollars to spend (buys only). */
+  shares?: number;
+  dollars?: number;
+  at: string; // ISO UTC
+}
+/** An order that could not be filled, with the reason in plain words. */
+export interface OrderNote { id: string; symbol: string; side: 'buy' | 'sell'; why: string; at: string }
+
 export interface Portfolio {
   /** Pretend dollars you started with. */
   start: number;
   cash: number;
   holdings: Holding[];
   trades: Trade[]; // newest first
+  /** Orders waiting for the market to open, oldest first. */
+  orders?: Order[];
+  /** Orders that could not be filled, newest first. */
+  notes?: OrderNote[];
   /** One total value per day, oldest first, for the "how am I doing" graph. */
   snapshots: { d: string; v: number }[];
 }

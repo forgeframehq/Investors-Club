@@ -338,7 +338,8 @@ export default function TeacherClass() {
               <Txt size={17} bold>Trading rules</Txt>
               <Rule title="Pause trading" body="Students can look and learn but cannot buy or sell. Useful during a lesson, or to freeze the leaderboard at the end of a round." on={cls.paused} onPress={() => act(() => updateClass(code, { paused: !cls.paused }))} />
               <Divider />
-              <Rule title="Trade only while the market is open" body={`Like the real thing: 10:30 am to 5 pm Bermuda time, Monday to Friday, not on US market holidays. When this is off, students can trade any time at the last price. ${nextOpenText()}`} on={cls.hoursOnly} onPress={() => act(() => updateClass(code, { hoursOnly: !cls.hoursOnly }))} />
+              <Txt size={14} bold>Trading hours</Txt>
+              <Txt size={13} color={C.muted}>Trades happen only while the US stock market is open, like the real thing: 10:30 am to 5 pm Bermuda time, Monday to Friday, and not on US market holidays. Outside those hours a student can place an order, and it is filled at the first price after the market opens. {nextOpenText()}</Txt>
             </Card>
             <Card>
               <Txt size={17} bold>This class</Txt>

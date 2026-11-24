@@ -70,6 +70,16 @@ export async function tradeInClass(symbol: string, side: 'buy' | 'sell', shares:
   return j.trade as { price: number; shares: number };
 }
 
+/** Places a class order to be filled when the market opens. */
+export async function orderInClass(symbol: string, side: 'buy' | 'sell', amount: { shares?: number; dollars?: number }) {
+  const j = await mine('/order', { symbol, side, ...amount });
+  setClassPortfolio(j.portfolio as ServerPortfolio);
+}
+export async function cancelClassOrder(id: string) {
+  const j = await mine('/order/cancel', { id });
+  setClassPortfolio(j.portfolio as ServerPortfolio);
+}
+
 export async function leaderboard(): Promise<{ className: string; paused: boolean; hoursOnly: boolean; standings: Standing[] }> {
   const j = await mine('/leaderboard');
   return { className: j.class.name, paused: !!j.class.paused, hoursOnly: !!j.class.hours_only, standings: j.standings };

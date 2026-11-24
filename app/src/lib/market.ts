@@ -5,8 +5,8 @@ import { Platform } from 'react-native';
 
 import { STOCKS } from '@/data/stocks';
 
-import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, nextOpenText, twelveHistory } from './provider';
-import { commit, db, saveMarket, snapshot } from './store';
+import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, twelveHistory } from './provider';
+import { commit, db, saveMarket, settleSolo, snapshot } from './store';
 import type { HistoryPoint, Markers, Quote } from './types';
 
 const BUILT_IN = (process.env.EXPO_PUBLIC_SERVER_URL ?? '').trim();
@@ -17,7 +17,15 @@ const clean = (url: string) => url.trim().replace(/\/+$/, '');
 export const serverUrl = () => clean(db.cls?.server || db.teacher?.server || db.settings.server || BUILT_IN || sameOrigin);
 export type Source = 'server' | 'direct' | 'none';
 export const source = (): Source => (serverUrl() ? 'server' : db.settings.finnhubKey.trim() ? 'direct' : 'none');
-export { marketOpen, nextOpenText };
+import { nextOpenText as nextOpenAt } from './provider';
+export { marketOpen };
+/**
+ * Whether trading is open right now. The class server's answer is used when there is one, so every student in
+ * a class agrees; otherwise the clock on this device decides.
+ */
+export const isOpen = () => (source() === 'server' && db.net.open !== null ? db.net.open : marketOpen());
+/** A sentence saying whether the market is open, and if not, when it opens next (Bermuda time). */
+export const nextOpenText = () => nextOpenAt(new Date(), isOpen());
 
 /** Fetches JSON with a time limit and turns failures into a sentence a child can read. */
 export async function getJson(url: string, init?: RequestInit, ms = 12000): Promise<any> {
@@ -76,6 +84,7 @@ export function refreshQuotes(force = false): Promise<void> {
       if (src === 'server') {
         const j = await getJson(`${serverUrl()}/api/quotes?symbols=${symbols.join(',')}`);
         for (const [sym, q] of Object.entries((j?.quotes ?? {}) as Record<string, Quote>)) db.quotes[sym] = q;
+        if (typeof j?.open === 'boolean') db.net.open = j.open;
       } else {
         const key = db.settings.finnhubKey.trim();
         let failed: Error | null = null;
@@ -93,7 +102,8 @@ export function refreshQuotes(force = false): Promise<void> {
     } catch (e) {
       error = (e as Error).message;
     }
-    db.net = { loading: false, error, at: error ? db.net.at : Date.now() };
+    db.net = { ...db.net, loading: false, error, at: error ? db.net.at : Date.now() };
+    if (!error && isOpen()) settleSolo();
     snapshot();
     saveMarket();
     commit();

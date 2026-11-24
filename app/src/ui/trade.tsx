@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { tradeInClass } from '@/lib/classroom';
+import { orderInClass, tradeInClass } from '@/lib/classroom';
 import { fmtShares, money, parseNum, trimNum } from '@/lib/format';
-import { freshQuote } from '@/lib/market';
+import { freshQuote, isOpen, nextOpenText } from '@/lib/market';
 import { roundShares } from '@/lib/rules';
-import { holdingOf, inClass, portfolio, stock, tradeSolo, useStore } from '@/lib/store';
+import { holdingOf, inClass, orderSolo, portfolio, stock, tradeSolo, useStore } from '@/lib/store';
 
 import { watchBadges } from './celebrate';
-import { Btn, C, Chip, Field, Row, Txt } from './kit';
+import { Btn, C, Chip, Field, Icon, Row, Txt } from './kit';
 import { toast } from './overlay';
 
 /** Bottom sheet for buying or selling one stock. `side` null means closed. */
@@ -35,6 +35,8 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
   const shares = sharesAt(price);
   const total = shares * price;
   const buying = side === 'buy';
+  // Like a real broker: when the market is closed the order waits and is filled at the first price after it opens.
+  const open = isOpen();
   const problem = !text.trim() ? '' : !(amount > 0) ? 'Enter a number.' : shares <= 0 ? 'That is too small to trade.' : buying && total > p.cash + 0.001 ? `You have ${money(p.cash)} in cash.` : !buying && shares > held + 1e-6 ? `You have ${fmtShares(held)}.` : '';
 
   const quick: [string, () => void][] = buying
@@ -46,6 +48,17 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
     setError('');
     const celebrate = watchBadges();
     try {
+      if (!open) {
+        const amountOf = buying && unit === 'dollars' ? { dollars: Math.round(amount * 100) / 100 } : { shares };
+        if (inClass()) await orderInClass(symbol, side, amountOf);
+        else {
+          const failed = orderSolo(symbol, side, amountOf);
+          if (failed) throw new Error(failed);
+        }
+        onClose();
+        toast('Order placed. It will be filled when the market opens.');
+        return;
+      }
       let done: { shares: number; price: number };
       if (inClass()) done = await tradeInClass(symbol, side, shares);
       else {
@@ -76,6 +89,12 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
             <Txt size={14} color={C.muted}>
               {money(price)} a share · {buying ? `you have ${money(p.cash)} cash` : `you own ${fmtShares(held)}`}
             </Txt>
+            {!open && (
+              <Row gap={10} style={{ backgroundColor: C.accentDim, borderRadius: 12, padding: 12, alignItems: 'flex-start' }}>
+                <Icon name="moon-outline" size={20} color={C.accent} />
+                <Txt size={13} style={{ flex: 1 }}>{nextOpenText()} You can place an order now. It waits, then is filled at the first price after the market opens, which may be higher or lower than {money(price)}.</Txt>
+              </Row>
+            )}
             <Row>
               <Btn title="Dollars" kind={unit === 'dollars' ? 'primary' : 'ghost'} height={42} style={{ flex: 1 }} onPress={() => { setUnit('dollars'); setText(''); }} />
               <Btn title="Shares" kind={unit === 'shares' ? 'primary' : 'ghost'} height={42} style={{ flex: 1 }} onPress={() => { setUnit('shares'); setText(''); }} />
@@ -97,7 +116,7 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
               </Txt>
             )}
             {!!(problem || error) && <Txt size={14} color={C.bad}>{problem || error}</Txt>}
-            <Btn title={buying ? 'Confirm buy' : 'Confirm sell'} kind={buying ? 'primary' : 'ghost'} color={buying ? undefined : C.bad} busy={busy} disabled={!(shares > 0) || !!problem} onPress={go} />
+            <Btn title={open ? (buying ? 'Confirm buy' : 'Confirm sell') : buying ? 'Place buy order' : 'Place sell order'} kind={buying ? 'primary' : 'ghost'} color={buying ? undefined : C.bad} busy={busy} disabled={!(shares > 0) || !!problem} onPress={go} />
             <Btn title="Cancel" kind="plain" onPress={onClose} />
           </Pressable>
         </Pressable>
