@@ -7,22 +7,22 @@ export interface AvatarDef { id: string; name: string; icon: IconName; colour: s
 const a = (id: string, name: string, icon: IconName, colour: string): AvatarDef => ({ id, name, icon, colour });
 
 export const AVATARS: AvatarDef[] = [
-  a('rocket', 'Rocket', 'rocket', '#FF7A90'),
-  a('planet', 'Planet', 'planet', '#B79CFF'),
-  a('paw', 'Paw', 'paw', '#FFB454'),
-  a('football', 'Football', 'football', '#2EE6A6'),
-  a('basketball', 'Basketball', 'basketball', '#FF9D5C'),
-  a('music', 'Music', 'musical-notes', '#4CC2FF'),
-  a('gamer', 'Gamer', 'game-controller', '#C8F031'),
-  a('bike', 'Bike', 'bicycle', '#7CE0E6'),
-  a('boat', 'Boat', 'boat', '#4CC2FF'),
-  a('fish', 'Fish', 'fish', '#2EE6A6'),
-  a('flash', 'Lightning', 'flash', '#FFD23F'),
-  a('leaf', 'Leaf', 'leaf', '#7BD88F'),
-  a('star', 'Star', 'star', '#FFB454'),
-  a('pizza', 'Pizza', 'pizza', '#FF9D5C'),
-  a('icecream', 'Ice cream', 'ice-cream', '#FF7A90'),
-  a('diamond', 'Diamond', 'diamond', '#B79CFF'),
+  a('rocket', 'Rocket', 'rocket', '#E0527A'),
+  a('planet', 'Planet', 'planet', '#7C5CD6'),
+  a('paw', 'Paw', 'paw', '#D98A12'),
+  a('football', 'Football', 'football', '#12A38B'),
+  a('basketball', 'Basketball', 'basketball', '#E36F2C'),
+  a('music', 'Music', 'musical-notes', '#1E88C8'),
+  a('gamer', 'Gamer', 'game-controller', '#6E9E12'),
+  a('bike', 'Bike', 'bicycle', '#1C9AA8'),
+  a('boat', 'Boat', 'boat', '#1E88C8'),
+  a('fish', 'Fish', 'fish', '#12A38B'),
+  a('flash', 'Lightning', 'flash', '#D9A300'),
+  a('leaf', 'Leaf', 'leaf', '#3E9E5A'),
+  a('star', 'Star', 'star', '#D98A12'),
+  a('pizza', 'Pizza', 'pizza', '#E36F2C'),
+  a('icecream', 'Ice cream', 'ice-cream', '#E0527A'),
+  a('diamond', 'Diamond', 'diamond', '#7C5CD6'),
 ];
 
 const byId = new Map(AVATARS.map((x) => [x.id, x]));

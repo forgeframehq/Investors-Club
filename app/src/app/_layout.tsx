@@ -39,7 +39,7 @@ export default function RootLayout() {
   if (!ready) return null;
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       {/* The key remounts every screen when the accent changes, so all of them pick up the new colour. */}
       {/* While the welcome steps are showing, screen readers skip the app underneath them. */}
       <View style={{ flex: 1 }} importantForAccessibility={settings.onboarded ? 'auto' : 'no-hide-descendants'}>

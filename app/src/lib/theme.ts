@@ -2,34 +2,40 @@
 /** The app's typeface. On Android it is built into the app (see the expo-font plugin in app.json); in a browser lib/fonts.ts loads it. */
 export const F = 'Inter';
 
+// The palette comes from Bermuda: pink sand, turquoise water, and the pastel houses with their white roofs.
+// Accents are a shade deeper than the pastels so buttons and links stay easy to read on a light background.
 export const ACCENTS = {
-  Volt: { accent: '#C8F031', accentDim: '#2A3308', onAccent: '#141A00' },
-  Mint: { accent: '#2EE6A6', accentDim: '#0A3024', onAccent: '#00241A' },
-  Violet: { accent: '#8F7BFF', accentDim: '#221C4D', onAccent: '#0E0A2B' },
-  Crimson: { accent: '#FF3B5C', accentDim: '#3D0F18', onAccent: '#FFFFFF' },
-  Ice: { accent: '#4CC2FF', accentDim: '#0E2E40', onAccent: '#001B2B' },
-  Orange: { accent: '#FF6B2C', accentDim: '#3B1D10', onAccent: '#FFFFFF' },
+  Ocean: { accent: '#0FA3A8', accentDim: '#D6F3F2', onAccent: '#FFFFFF' },
+  'Pink Sand': { accent: '#E8658F', accentDim: '#FFE1EA', onAccent: '#FFFFFF' },
+  Sky: { accent: '#3D8FE0', accentDim: '#DBECFC', onAccent: '#FFFFFF' },
+  Sunshine: { accent: '#F2B63C', accentDim: '#FFF1CC', onAccent: '#3A2A00' },
+  Coral: { accent: '#F27A5E', accentDim: '#FFE3DB', onAccent: '#FFFFFF' },
+  Lilac: { accent: '#8E7BE0', accentDim: '#E9E3FC', onAccent: '#FFFFFF' },
 } as const;
 export type AccentName = keyof typeof ACCENTS;
-export const DEFAULT_ACCENT: AccentName = 'Mint';
+export const DEFAULT_ACCENT: AccentName = 'Ocean';
+
+/** House colours, for tiles that sit side by side: pink, yellow, mint, sky, lilac. */
+export const PASTELS = ['#FFD6E0', '#FFEFB5', '#CDEFE0', '#CFE6FA', '#E4DBFB'];
 
 export const C = {
-  bg: '#000000',
-  bar: '#161618',
-  card: '#1C1C1F',
-  cardHi: '#2A2A2E',
-  border: '#2C2C31',
-  text: '#FFFFFF',
-  muted: '#8E8E96',
-  accent: ACCENTS.Mint.accent as string,
-  accentDim: ACCENTS.Mint.accentDim as string,
-  onAccent: ACCENTS.Mint.onAccent as string, // text and icons drawn on top of the accent colour
-  warm: '#7CC4FF', // second highlight: badges, tips, cautions
-  third: '#B79CFF', // third series colour in charts
-  good: '#2FBF71',
-  goodDim: '#0F2A1B',
-  bad: '#F0524F',
-  dark: '#0B0B0C',
+  bg: '#FFF3EE', // pink sand
+  bar: '#FFFFFF',
+  card: '#FFFFFF',
+  cardHi: '#F4ECEA',
+  border: '#EFDFDA',
+  text: '#16324A', // deep ocean blue
+  muted: '#667A8C',
+  accent: ACCENTS.Ocean.accent as string,
+  accentDim: ACCENTS.Ocean.accentDim as string,
+  onAccent: ACCENTS.Ocean.onAccent as string, // text and icons drawn on top of the accent colour
+  warm: '#E8793A', // second highlight: streaks, tips, cautions
+  third: '#8E7BE0', // third series colour in charts
+  good: '#1FA971',
+  goodDim: '#DFF5EA',
+  bad: '#E5484D',
+  badDim: '#FDE3E3',
+  dark: '#16324A',
 };
 
 export function applyAccent(name: string | undefined) {

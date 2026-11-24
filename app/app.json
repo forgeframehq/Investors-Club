@@ -2,19 +2,19 @@
   "expo": {
     "name": "Investors Club",
     "slug": "investors-club",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "investorsclub",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#000000",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFF3EE",
     "ios": {
       "bundleIdentifier": "com.forgeframe.investorsclub",
       "supportsTablet": true
     },
     "android": {
       "package": "com.forgeframe.investorsclub",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#0B0B0C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -37,7 +37,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#000000",
+          "backgroundColor": "#FFF3EE",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 96
         }

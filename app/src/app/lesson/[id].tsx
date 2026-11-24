@@ -63,7 +63,7 @@ export default function LessonScreen() {
           {question.options.map((o, i) => {
             const answered = picked !== null;
             const right = i === question.answer;
-            const colour = !answered ? C.card : right ? C.goodDim : i === picked ? '#3A1514' : C.card;
+            const colour = !answered ? C.card : right ? C.goodDim : i === picked ? C.badDim : C.card;
             const edge = !answered ? C.card : right ? C.good : i === picked ? C.bad : C.card;
             return (
               <Pressable key={o} accessibilityRole="button" accessibilityLabel={`Answer ${i + 1}`} disabled={answered} onPress={() => setPicked(i)}

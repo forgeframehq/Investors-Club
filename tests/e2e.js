@@ -203,6 +203,10 @@ function driver(p, errs) {
   check(!!again.token && (await api('/teacher/classes', null, again.token)).classes.length === 1, 'the teacher can sign in on another device and see the class');
 
   await go('/settings'); await shot('20-settings');
+  check(await tap('Start over as a new student') && await tap('Start over'), 'start over from Settings'); await sleep(700);
+  d = await data();
+  check((await text()).includes('Welcome to Investors Club') && !d.settings.onboarded && d.solo.trades.length === 0 && !d.teacher, 'starting over clears this device and shows the welcome steps again');
+  await tap('Get started'); await type('Your first name', 'Sam'); await tap('Next'); await tap('Next'); await tap('Practice portfolio');
   await go('/market-data'); await shot('21-market-data');
   check((await text()).includes('Prices come from the class server'), 'Market data shows where prices come from');
 

@@ -32,7 +32,7 @@ const kindOf = (kind: Kind): { bg: string; fg: string } => ({
   primary: { bg: C.accent, fg: C.onAccent },
   card: { bg: C.card, fg: C.text },
   ghost: { bg: C.cardHi, fg: C.text },
-  good: { bg: C.good, fg: C.dark },
+  good: { bg: C.good, fg: '#FFFFFF' },
   danger: { bg: C.card, fg: C.bad },
   text: { bg: 'transparent', fg: C.accent },
   plain: { bg: 'transparent', fg: C.muted },
@@ -141,7 +141,7 @@ export function Stat({ title, value, color = C.text }: { title: string; value: s
   );
 }
 
-const TILE_COLOURS = ['#4CC2FF', '#2EE6A6', '#B79CFF', '#FFB454', '#FF7A90', '#7CE0E6', '#C8F031', '#FF9D5C'];
+const TILE_COLOURS = ['#1E88C8', '#12A38B', '#7C5CD6', '#C98212', '#E0527A', '#1C9AA8', '#6E9E12', '#E36F2C'];
 const brokenLogos = new Set<string>(); // addresses that failed to load this session
 /**
  * Square badge for a stock: the company's logo when we have one, otherwise its ticker symbol in a colour that
@@ -153,7 +153,7 @@ export function Tile({ symbol, size = 46 }: { symbol: string; size?: number }) {
   const logo = logos[symbol];
   if (logo && !brokenLogos.has(logo)) {
     return (
-      <View style={{ width: size, height: size, borderRadius: size * 0.26, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <View style={{ width: size, height: size, borderRadius: size * 0.26, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <Image source={{ uri: logo }} contentFit="contain" cachePolicy="disk" accessibilityLabel={`${symbol} logo`} style={{ width: size * 0.74, height: size * 0.74 }}
           onError={() => { brokenLogos.add(logo); redraw((n) => n + 1); }} />
       </View>
@@ -234,7 +234,7 @@ export function TabHeader({ title, children }: { title: string; children?: React
 export const s = StyleSheet.create({
   btn: { borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
   chip: { minHeight: 36, borderRadius: 18, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 10 },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: C.border },
   field: { fontFamily: F, backgroundColor: C.card, color: C.text, borderRadius: 12, paddingHorizontal: 14, minHeight: 48, fontSize: 16, minWidth: 0 },
   search: { backgroundColor: C.card, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
   caption: { fontFamily: F, color: C.muted, fontSize: 12, letterSpacing: 0.4 },

@@ -42,6 +42,9 @@ they were last active, and what they have learned (level, lessons, words, flashc
 sorted by value, name, learning or activity. A teacher can reset a student's PIN, remove a student, start a new
 round, or delete a class. Signing in on another device shows the same classes.
 
+To hand a device to someone else, or to demo a fresh login, use Settings → Start over as a new student. It
+clears that device only; a class portfolio stays on the class server.
+
 No email addresses anywhere: students are a name and a PIN inside one class, and a teacher is a sign-in name and
 a password. That also means a forgotten teacher password cannot be reset yet (see "Not built yet").
 

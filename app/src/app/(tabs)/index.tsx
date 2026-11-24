@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { F } from '@/lib/theme';
+import { F, PASTELS } from '@/lib/theme';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -94,10 +94,10 @@ function Peek({ symbol, onTrade }: { symbol: string; onTrade: () => void }) {
   );
 }
 
-function Shortcut({ icon, title, badge, onPress }: { icon: IconName; title: string; badge?: string; onPress: () => void }) {
+function Shortcut({ icon, title, badge, tint, onPress }: { icon: IconName; title: string; badge?: string; tint: number; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Shortcut ${title}`} onPress={onPress} style={({ pressed }) => ({ width: 76, alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 })}>
-      <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: PASTELS[tint % PASTELS.length], alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={icon} size={26} />
         {!!badge && (
           <View style={{ position: 'absolute', top: -6, right: -10, backgroundColor: C.accent, borderRadius: 9, paddingHorizontal: 6, paddingVertical: 1 }}>
@@ -206,11 +206,11 @@ export default function Market() {
         </Row>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingTop: 6 }}>
-          <Shortcut icon="flag-outline" title="Missions" badge={done === 3 ? (days > 1 ? `${days} days` : 'Done') : `${done}/3`} onPress={() => router.push('/learn')} />
-          <Shortcut icon="albums-outline" title="Flashcards" onPress={() => router.push('/flashcards')} />
-          <Shortcut icon="school-outline" title="Lessons" onPress={() => router.push('/learn')} />
-          <Shortcut icon="book-outline" title="Glossary" onPress={() => router.push('/glossary')} />
-          <Shortcut icon="trophy-outline" title="Class" onPress={() => router.push('/class')} />
+          <Shortcut tint={0} icon="flag-outline" title="Missions" badge={done === 3 ? (days > 1 ? `${days} days` : 'Done') : `${done}/3`} onPress={() => router.push('/learn')} />
+          <Shortcut tint={1} icon="albums-outline" title="Flashcards" onPress={() => router.push('/flashcards')} />
+          <Shortcut tint={2} icon="school-outline" title="Lessons" onPress={() => router.push('/learn')} />
+          <Shortcut tint={3} icon="book-outline" title="Glossary" onPress={() => router.push('/glossary')} />
+          <Shortcut tint={4} icon="trophy-outline" title="Class" onPress={() => router.push('/class')} />
         </ScrollView>
 
         {movers.length > 0 && (

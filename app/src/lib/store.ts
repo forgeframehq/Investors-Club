@@ -152,6 +152,25 @@ export function resetSolo() {
   commit();
 }
 
+/**
+ * Forgets this student on this device, so the welcome steps show again: name, picture, practice portfolio,
+ * class link, watchlist, learning and missions. The market data setup and saved prices stay, and a class
+ * portfolio stays on the class server (the same name and PIN gets it back).
+ */
+export function startOver() {
+  const { finnhubKey, twelveKey, server } = db.settings;
+  db.settings = { name: '', avatar: '', onboarded: false, level: 'simple', finnhubKey, twelveKey, server };
+  db.solo = newPortfolio();
+  db.cls = null;
+  db.classPortfolio = null;
+  db.teacher = null;
+  db.watch = [];
+  db.learned = { terms: [], lessons: {}, cards: {}, rounds: 0 };
+  db.play = newPlay();
+  applyAccent(undefined);
+  commit();
+}
+
 export function toggleWatch(symbol: string) {
   db.watch = db.watch.includes(symbol) ? db.watch.filter((s) => s !== symbol) : [...db.watch, symbol];
   commit();

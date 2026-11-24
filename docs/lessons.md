@@ -50,3 +50,11 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
   and open were the first). Never edit a `CREATE TABLE` line for a table that already exists.
 - **An "exact copy" of another app is not on offer.** Asked for Gate.io's look exactly, we took its layout ideas
   (see the entry above) and a free typeface of a similar kind, not its design or font.
+
+## 2026-11-24 — Pastel palette, starting over
+
+- **The look is light and pastel now**: pink sand background, white cards, ocean-blue text, turquoise accent,
+  house-colour tiles (`PASTELS` in `lib/theme.ts`). Colours that sit on white must be the deeper shades; the
+  bright ones from the dark theme (lime, yellow) were unreadable and were replaced.
+- **"Start over as a new student"** in Settings clears this device (`startOver` in the store) and shows the
+  welcome steps again. It is how to demo a fresh login without clearing browser data.
