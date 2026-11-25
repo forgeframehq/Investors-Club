@@ -136,3 +136,11 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
 - **Chart axis labels repeated ("$10k" four times)** when the range was small. Labels now show whole dollars or
   cents when the range is narrow.
 - **Students can no longer reset the practice portfolio.** Only a teacher can restart a class.
+
+## 2026-11-25 — Dark mode, text size, no student reset
+
+- **Shared styles were frozen when the app started.** `kit.tsx` built `s.card`, `s.field` and others with
+  `StyleSheet.create`, which read the colours once. That never showed while only the accent could change. They
+  are getters now, so dark mode reaches them.
+- **To test from fresh:** open `/teacher` and tap "Reset this device". Students no longer have "Start over".
+- **Pastel tiles keep dark icons in dark mode**; anything drawn on a fixed colour needs a fixed colour too.

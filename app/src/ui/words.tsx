@@ -3,7 +3,7 @@ import { Text, type StyleProp, type TextStyle } from 'react-native';
 
 import { term } from '@/data/glossary';
 import { brands, db, markTerm } from '@/lib/store';
-import { C, F } from '@/lib/theme';
+import { C, F, T } from '@/lib/theme';
 
 import { watchBadges } from './celebrate';
 import { alertBox } from './overlay';
@@ -27,7 +27,7 @@ export function Words({ text, size = 17, color = C.text, center, style }: { text
   const filled = text.replace(/\{b([123])\}/g, (_, n) => names[Number(n) - 1]);
   const parts = filled.split(/(\[[^\]]+\]\([a-z0-9-]+\))/g);
   return (
-    <Text style={[{ fontFamily: F, color, fontSize: size, lineHeight: Math.round(size * 1.4), textAlign: center ? 'center' : undefined }, style]}>
+    <Text style={[{ fontFamily: F, color, fontSize: Math.round(size * T.scale), lineHeight: Math.round(size * T.scale * 1.4), textAlign: center ? 'center' : undefined }, style]}>
       {parts.map((part, i) => {
         const m = /^\[([^\]]+)\]\(([a-z0-9-]+)\)$/.exec(part);
         if (!m) return part;

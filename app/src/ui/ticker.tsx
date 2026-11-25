@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { F } from '@/lib/theme';
+import { F, T } from '@/lib/theme';
 import { Animated, Easing, Platform, Pressable, Text, View } from 'react-native';
 
 import { money } from '@/lib/format';
@@ -14,8 +14,8 @@ export function Ticker({ items, onPress }: { items: TickerItem[]; onPress: (symb
   const [width, setWidth] = useState(0);
 
   useEffect(() => {
-    if (!width) return;
     x.setValue(0);
+    if (!width || !T.motion) return; // with less motion the tape stands still and can be read like a list
     // Two copies sit side by side; sliding left by one copy's width and jumping back looks endless.
     const loop = Animated.loop(Animated.timing(x, { toValue: -width, duration: width * 26, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }));
     loop.start();

@@ -8,7 +8,7 @@ import { SCHOOLS } from '@/data/schools';
 import { ago, money } from '@/lib/format';
 import { isOpen, refreshQuotes, serverUrl } from '@/lib/market';
 import { STOCKS } from '@/data/stocks';
-import { useStore } from '@/lib/store';
+import { startOver, useStore } from '@/lib/store';
 import type { ClassSummary } from '@/lib/types';
 import { Btn, C, Card, Chip, Delta, Empty, Field, Icon, Page, Row, Stat, TapCard, Txt } from '@/ui/kit';
 import { TeacherBar } from '@/ui/teacher-bar';
@@ -77,6 +77,13 @@ export default function Teacher() {
     toast(`${made.name} is ready`);
     router.push(`/teacher-class?code=${made.code}`);
   });
+  // Students have no reset of their own. This one is for teachers and for testing: it clears the student app on
+  // this device (name, picture, practice portfolio, lessons) and signs the teacher out here.
+  const resetDevice = async () => {
+    if (!(await confirm('Reset this device?', 'This clears the student app on this device: name, picture, practice portfolio, badges and lessons. Class portfolios are kept by the class server. You will be signed out here too.', 'Reset', { danger: true }))) return;
+    startOver();
+    router.replace('/');
+  };
   const signOut = async () => {
     if (!(await confirm('Sign out?', 'Your classes keep running. Sign in again to see them.', 'Sign out'))) return;
     await teacherSignOut();
@@ -107,6 +114,7 @@ export default function Teacher() {
           {isNew && <Field accessibilityLabel="School key" placeholder="School key (only if you were given one)" value={schoolKey} onChangeText={setSchoolKey} autoCapitalize="none" autoCorrect={false} style={{ backgroundColor: C.cardHi }} />}
           {!!error && <Txt size={14} color={C.bad}>{error}</Txt>}
           <Btn title={isNew ? 'Create account' : 'Sign in as teacher'} busy={busy} disabled={login.trim().length < 3 || password.length < 8 || (isNew && (name.trim().length < 2 || !school))} onPress={enter} />
+          <Btn title="Reset this device" kind="plain" onPress={resetDevice} />
           {isNew && <Txt size={12} color={C.muted}>Write your password down. There is no email on the account, so it cannot be sent to you if you forget it.</Txt>}
         </Card>
         <Card>
@@ -143,6 +151,7 @@ export default function Teacher() {
           {!!teacher.school && <Txt size={14} color={C.muted}>{teacher.school}</Txt>}
         </View>
         <Btn title="Sign out" kind="text" icon="log-out-outline" onPress={signOut} />
+        <Btn title="Reset this device" kind="plain" onPress={resetDevice} />
       </Row>
       {/* The one place that says whether prices are flowing. Students never see setup details. */}
       <TapCard bare label="Check prices now" onPress={() => refreshQuotes(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

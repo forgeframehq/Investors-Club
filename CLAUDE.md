@@ -55,7 +55,10 @@ cd ../tests && ./run-e2e.sh                                        # drives the 
 - **Every pressable has an `accessibilityLabel`.** The end-to-end test finds controls by label, and screen readers
   need it.
 - **Colours come from `src/lib/theme.ts`** and are read at render time (`C.accent`, with `C.onAccent` for anything
-  drawn on it), so the in-app colour picker works. Do not copy them into module-level constants.
+  drawn on it), so the colour picker and dark mode work. Do not copy them into module-level constants or
+  `StyleSheet.create`. Text sizes go through `Txt` (or multiply by `T.scale`) so the Large text setting works.
+- **Students cannot reset or start over.** A student in a class has Settings → Sign out (for shared tablets).
+  The only full reset is "Reset this device" on `/teacher`, which is also how Sudhi tests from fresh.
 - **No `Alert.alert`.** Use the promise-based dialogs in `src/ui/overlay.tsx`; they also work in the browser test.
 - **"Level" means a group of lessons; the ladder (Rookie to Tycoon) is "Rank".** Do not mix the two words.
 - **Plain words in the interface.** Lessons are pitched at ages 12 to 14: proper terms, each explained once, and

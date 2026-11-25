@@ -9,7 +9,7 @@ import { TERMS } from '@/data/glossary';
 import { dayKey, isoNow, newId } from './format';
 import { applyTrade, checkOrder, fillOrders } from './rules';
 import { readJson, writeJson } from './storage';
-import { applyAccent } from './theme';
+import { applyTheme } from './theme';
 import type { ClassLink, HistoryPoint, Holding, Learned, Markers, Order, Play, Portfolio, Progress, Quote, Settings, Stock, TeacherLink } from './types';
 
 export const START_CASH = 10000;
@@ -96,7 +96,7 @@ export async function load() {
     db.history = market.history ?? {};
     db.logos = market.logos ?? {};
   }
-  applyAccent(db.settings.accent);
+  applyTheme(db.settings);
   db.ready = true;
   bump();
 }
@@ -105,7 +105,7 @@ export async function load() {
 
 export function setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
   db.settings[key] = value;
-  if (key === 'accent') applyAccent(value as string);
+  if (key === 'accent' || key === 'theme' || key === 'textSize' || key === 'lessMotion') applyTheme(db.settings);
   commit();
 }
 
@@ -198,7 +198,7 @@ export function startOver() {
   db.watch = [];
   db.learned = { terms: [], lessons: {}, cards: {}, rounds: 0 };
   db.play = newPlay();
-  applyAccent(undefined);
+  applyTheme(db.settings);
   commit();
 }
 

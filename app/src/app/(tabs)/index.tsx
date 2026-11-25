@@ -102,11 +102,14 @@ function Peek({ symbol, onTrade }: { symbol: string; onTrade: () => void }) {
   );
 }
 
+// The pastel tiles stay pastel in dark mode, so what is drawn on them stays dark.
+const ON_PASTEL = '#16324A';
+
 function Shortcut({ icon, title, badge, tint, onPress }: { icon: IconName; title: string; badge?: string; tint: number; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Shortcut ${title}`} onPress={onPress} style={({ pressed }) => ({ width: 76, alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 })}>
       <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: PASTELS[tint % PASTELS.length], alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={icon} size={26} />
+        <Icon name={icon} size={26}  color={ON_PASTEL} />
         {!!badge && (
           <View style={{ position: 'absolute', top: -6, right: -10, backgroundColor: C.accent, borderRadius: 9, paddingHorizontal: 6, paddingVertical: 1 }}>
             <Text style={{ fontFamily: F, color: C.onAccent, fontSize: 11, fontWeight: '700' }}>{badge}</Text>

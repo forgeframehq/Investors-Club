@@ -12,7 +12,7 @@ export function Avatar({ id, name = '', size = 40 }: { id?: string; name?: strin
   if (def) {
     const ring = Math.max(2, Math.round(size * 0.05));
     return (
-      <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: ring, borderColor: '#FFFFFF', overflow: 'hidden', backgroundColor: C.cardHi }}>
+      <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: ring, borderColor: C.card, overflow: 'hidden', backgroundColor: C.cardHi }}>
         <Image source={def.image} contentFit="cover" accessibilityLabel={`${def.name} picture`} style={{ width: size - ring * 2, height: size - ring * 2 }} />
       </View>
     );

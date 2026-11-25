@@ -328,6 +328,8 @@ function driver(p, errs) {
   const board = await api('/leaderboard', null, (await s.data()).cls.token);
   check(board.standings && board.standings.some((x) => x.name === 'Sam T'), 'the student leaderboard shows first name and last initial');
   check(sam && sam.fullName === 'Sam Trott' && !JSON.stringify(board).includes('Trott'), 'the teacher gets the full name; the student leaderboard never does');
+  await s.go('/settings');
+  check((await s.text()).includes('Sign out') && !(await s.text()).includes('Start over'), 'a student in a class can sign out, for shared tablets');
   check(sam && sam.buys === 1 && sam.checked === 1 && sam.recent[0].why === 'spread', 'the class server keeps the reason for the buy');
   const alex = cls.standings.find((x) => x.name === 'Alex R');
   check(alex && alex.buys >= 2 && alex.checked === 0, 'buys made without the check are counted as unchecked');
@@ -347,9 +349,21 @@ function driver(p, errs) {
   check(!!again.token && (await api('/teacher/classes', null, again.token)).classes.length === 1, 'the teacher can sign in on another device and see the class');
 
   await go('/settings'); await shot('20-settings');
-  check(await tap('Start over as a new student') && await tap('Start over'), 'start over from Settings'); await sleep(700);
+  t = await text();
+  check(!t.includes('Start over') && !t.includes('Sign out') && !t.includes('Reset'), 'a student with no class has no way to reset or start over');
+  const has = (rgb) => p.evaluate((c) => [...document.querySelectorAll('div')].some((e) => getComputedStyle(e).backgroundColor === c), rgb);
+  check(await tap('Dark') && (await data()).settings.theme === 'dark' && await has('rgb(13, 25, 36)') && !(await has('rgb(255, 243, 238)')), 'dark mode recolours the app'); await shot('20-settings-dark');
+  await go('/'); await shot('20-home-dark'); await go('/portfolio'); await shot('20-portfolio-dark'); await go('/settings');
+  const sizeOf = () => p.evaluate(() => parseFloat(getComputedStyle([...document.querySelectorAll('div')].find((e) => e.innerText === 'Text size')).fontSize));
+  const before = await sizeOf();
+  check(await tap('Large') && (await sizeOf()) > before, 'large text makes the text bigger'); await shot('20-settings-large');
+  check(await tap('Less') && (await data()).settings.lessMotion === true, 'less movement can be switched on');
+  await tap('Normal'); await tap('Full'); await tap('Light');
+  check(await has('rgb(255, 243, 238)'), 'and back to light');
+  await go('/teacher'); await sleep(600);
+  check(await tap('Reset this device') && await tap('Reset'), 'a teacher can reset the device'); await sleep(900);
   d = await data();
-  check((await text()).includes('Welcome to Investors Club') && !d.settings.onboarded && d.solo.trades.length === 0 && !d.teacher, 'starting over clears this device and shows the welcome steps again');
+  check((await text()).includes('Welcome to Investors Club') && !d.settings.onboarded && d.solo.trades.length === 0 && !d.teacher, 'resetting clears this device and shows the welcome steps again');
   await welcome({ tap, type }, 'Picture Turtle'); await tap('Practise on my own for now'); await sleep(500);
   await go('/settings'); await shot('21-settings-clean');
   t = await text();

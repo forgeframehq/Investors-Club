@@ -2,13 +2,13 @@ import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { AppState, View } from 'react-native';
+import { AppState, View, useColorScheme } from 'react-native';
 
 import { syncPortfolio } from '@/lib/classroom';
 import { loadLogos, probe, refreshQuotes } from '@/lib/market';
 import { loadWebFonts } from '@/lib/fonts';
 import { load, useStore } from '@/lib/store';
-import { F } from '@/lib/theme';
+import { F, applyTheme, T } from '@/lib/theme';
 import { C } from '@/ui/kit';
 import { OverlayHost } from '@/ui/overlay';
 import { Welcome } from '@/ui/welcome';
@@ -39,15 +39,19 @@ export default function RootLayout() {
     return () => { clearInterval(timer); sub.remove(); };
   }, []);
 
+  // With "Match my phone", switch when the phone switches between light and dark.
+  const phone = useColorScheme();
+  if (ready && settings.theme === 'auto' && T.dark !== (phone === 'dark')) applyTheme(settings);
+
   if (!ready) return null;
   return (
     <>
-      <StatusBar style="dark" />
-      {/* The key remounts every screen when the accent changes, so all of them pick up the new colour. */}
+      <StatusBar style={T.dark ? 'light' : 'dark'} />
+      {/* The key remounts every screen when the look changes (colour, dark mode, text size, motion), so all of them pick it up. */}
       {/* While the welcome steps are showing, screen readers skip the app underneath them. */}
       <View style={{ flex: 1 }} importantForAccessibility={welcoming ? 'no-hide-descendants' : 'auto'}>
       <Stack
-        key={settings.accent ?? 'default'}
+        key={`${settings.accent ?? ''}|${T.dark}|${settings.textSize ?? ''}|${settings.lessMotion ? 1 : 0}`}
         screenOptions={{
           headerStyle: { backgroundColor: C.bar },
           headerTintColor: C.text,

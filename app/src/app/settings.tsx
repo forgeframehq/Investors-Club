@@ -1,24 +1,25 @@
 import { useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
-import { money } from '@/lib/format';
 import { ACCENTS, DEFAULT_ACCENT } from '@/lib/theme';
 import { setSetting, startOver, useStore } from '@/lib/store';
 import { Avatar } from '@/ui/avatar';
 import { Btn, C, Card, Icon, LinkRow, Page, Row, TapCard, Txt } from '@/ui/kit';
-import { confirm, toast } from '@/ui/overlay';
+import { confirm } from '@/ui/overlay';
 
 export default function Settings() {
   const router = useRouter();
-  const { settings } = useStore();
+  const { settings, cls } = useStore();
   const accent = settings.accent ?? DEFAULT_ACCENT;
 
 
-  const fresh = async () => {
-    if (!(await confirm('Start over on this device?', 'Your name, picture, practice portfolio, badges and learning on this device are cleared, and you leave your class here. A class portfolio is kept by the class server: join again with the same name and PIN to get it back.', 'Start over', { danger: true }))) return;
+  const signOut = async () => {
+    if (!(await confirm('Sign out on this device?', 'Your class portfolio is saved by your class. To get back in, choose your school and class again and use the same name and PIN. Lessons done on this device start again.', 'Sign out', { danger: true }))) return;
     startOver();
     router.replace('/');
   };
+  const theme = settings.theme ?? 'light';
+  const pick = (title: string, on: boolean, press: () => void) => <Btn key={title} title={title} kind={on ? 'primary' : 'ghost'} style={{ flex: 1 }} height={44} onPress={press} />;
 
   return (
     <Page>
@@ -38,6 +39,14 @@ export default function Settings() {
       </Row>
       <Txt size={13} color={C.muted}>Simple suits younger students. Detailed adds the proper terms for older ones.</Txt>
 
+      <Txt size={18} bold>Look</Txt>
+      <Row>
+        {pick('Light', theme === 'light', () => setSetting('theme', 'light'))}
+        {pick('Dark', theme === 'dark', () => setSetting('theme', 'dark'))}
+        {pick('Auto', theme === 'auto', () => setSetting('theme', 'auto'))}
+      </Row>
+      <Txt size={13} color={C.muted}>Auto follows your phone: dark when it is dark.</Txt>
+
       <Txt size={18} bold>Colour</Txt>
       <Row gap={12} style={{ flexWrap: 'wrap' }}>
         {Object.entries(ACCENTS).map(([name, a]) => (
@@ -48,10 +57,28 @@ export default function Settings() {
         ))}
       </Row>
 
-      <Txt size={18} bold>This device</Txt>
-      <View>
-        <LinkRow icon="log-out-outline" title="Start over as a new student" onPress={fresh} />
-      </View>
+      <Txt size={18} bold>Text size</Txt>
+      <Row>
+        {pick('Normal', settings.textSize !== 'large', () => setSetting('textSize', 'normal'))}
+        {pick('Large', settings.textSize === 'large', () => setSetting('textSize', 'large'))}
+      </Row>
+
+      <Txt size={18} bold>Movement</Txt>
+      <Row>
+        {pick('Full', !settings.lessMotion, () => setSetting('lessMotion', false))}
+        {pick('Less', !!settings.lessMotion, () => setSetting('lessMotion', true))}
+      </Row>
+      <Txt size={13} color={C.muted}>Less movement stops the moving price tape and the flashcard flip.</Txt>
+
+      {cls && (
+        <>
+          <Txt size={18} bold>This device</Txt>
+          <View>
+            <LinkRow icon="log-out-outline" title="Sign out" value={cls.name} onPress={signOut} />
+          </View>
+          <Txt size={13} color={C.muted}>Use this on a shared tablet so the next student can sign in.</Txt>
+        </>
+      )}
 
       <Card>
         <Txt size={15} bold>About Investors Club of Bermuda</Txt>

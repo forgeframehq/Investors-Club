@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { pct } from '@/lib/format';
 import { useStore } from '@/lib/store';
-import { C, F } from '@/lib/theme';
+import { C, F, T } from '@/lib/theme';
 
 export { C };
 
@@ -20,7 +20,7 @@ export function Txt({ children, size = 16, color = C.text, bold, center, lines, 
   children: React.ReactNode; size?: number; color?: string; bold?: boolean; center?: boolean; lines?: number; style?: StyleProp<TextStyle>;
 }) {
   return (
-    <Text numberOfLines={lines} style={[{ fontFamily: F, color, fontSize: size, lineHeight: Math.round(size * 1.35), fontWeight: bold ? '700' : '400', textAlign: center ? 'center' : undefined }, style]}>
+    <Text numberOfLines={lines} style={[{ fontFamily: F, color, fontSize: Math.round(size * T.scale), lineHeight: Math.round(size * T.scale * 1.35), fontWeight: bold ? '700' : '400', textAlign: center ? 'center' : undefined }, style]}>
       {children}
     </Text>
   );
@@ -61,7 +61,7 @@ export function Btn({ title, onPress, kind = 'primary', icon, disabled, busy, le
       {busy ? <ActivityIndicator color={fg} /> : (
         <>
           {icon && <Icon name={icon} size={20} color={fg} />}
-          <Text numberOfLines={1} style={{ fontFamily: F, color: fg, fontSize: link ? 15 : 16, fontWeight: kind === 'primary' || kind === 'good' ? '700' : '500', flexShrink: 1 }}>{title}</Text>
+          <Text numberOfLines={1} style={{ fontFamily: F, color: fg, fontSize: Math.round((link ? 15 : 16) * T.scale), fontWeight: kind === 'primary' || kind === 'good' ? '700' : '500', flexShrink: 1 }}>{title}</Text>
         </>
       )}
     </Pressable>
@@ -88,7 +88,7 @@ export function Chip({ title, selected, onPress }: { title: string; selected?: b
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ selected }} onPress={onPress}
       style={({ pressed }) => [s.chip, { backgroundColor: selected ? C.accent : C.cardHi, opacity: pressed ? 0.7 : 1 }]}>
-      <Text style={{ fontFamily: F, color: selected ? C.onAccent : C.text, fontSize: 14, fontWeight: '500' }}>{title}</Text>
+      <Text style={{ fontFamily: F, color: selected ? C.onAccent : C.text, fontSize: Math.round(14 * T.scale), fontWeight: '500' }}>{title}</Text>
     </Pressable>
   );
 }
@@ -241,11 +241,13 @@ export function TabHeader({ title, children }: { title: string; children?: React
   );
 }
 
-export const s = StyleSheet.create({
-  btn: { borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
-  chip: { minHeight: 36, borderRadius: 18, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: C.border },
-  field: { fontFamily: F, backgroundColor: C.card, color: C.text, borderRadius: 12, paddingHorizontal: 14, minHeight: 48, fontSize: 16, minWidth: 0 },
-  search: { backgroundColor: C.card, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  caption: { fontFamily: F, color: C.muted, fontSize: 12, letterSpacing: 0.4 },
-});
+// Shared shapes. These are getters so the colours are read when a screen draws, not when the app starts:
+// that is what lets dark mode and the text size change them.
+export const s = {
+  btn: { borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 } as ViewStyle,
+  chip: { minHeight: 36, borderRadius: 18, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' } as ViewStyle,
+  get card(): ViewStyle { return { backgroundColor: C.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: C.border }; },
+  get field(): TextStyle { return { fontFamily: F, backgroundColor: C.card, color: C.text, borderRadius: 12, paddingHorizontal: 14, minHeight: 48, fontSize: Math.round(16 * T.scale), minWidth: 0 }; },
+  get search(): ViewStyle { return { backgroundColor: C.card, borderRadius: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }; },
+  get caption(): TextStyle { return { fontFamily: F, color: C.muted, fontSize: Math.round(12 * T.scale), letterSpacing: 0.4 }; },
+};

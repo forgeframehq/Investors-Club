@@ -79,6 +79,12 @@ export interface Settings {
   onboarded: boolean;
   accent?: string;
   level: Level;
+  /** Light, dark, or whatever the phone is set to. Missing means light. */
+  theme?: 'light' | 'dark' | 'auto';
+  /** 'large' makes all text bigger. */
+  textSize?: 'normal' | 'large';
+  /** True to stop the moving price tape and the card flip. */
+  lessMotion?: boolean;
   /** Up to three companies the student already knows, picked in the welcome steps. Lessons use them as examples. */
   brands?: string[];
   /** True once the trial buy has been finished (or skipped by making a real one). */

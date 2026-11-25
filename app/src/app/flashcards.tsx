@@ -2,6 +2,8 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Animated, Platform, Pressable, View } from 'react-native';
 
+import { T } from '@/lib/theme';
+
 import { GROUPS, TERMS, type Group, type Term } from '@/data/glossary';
 import { CARD_KNOWN, cardsKnown, finishRound, markCard, markTerm, useStore } from '@/lib/store';
 import { mission, watchBadges } from '@/ui/celebrate';
@@ -51,6 +53,7 @@ export default function Flashcards() {
   };
   // The card squeezes shut, swaps sides, and opens again, which reads as a flip on Android and in a browser alike.
   const flip = () => {
+    if (!T.motion) return setFlipped((f) => !f);
     const native = Platform.OS !== 'web';
     Animated.timing(turn, { toValue: 0, duration: 120, useNativeDriver: native }).start(() => {
       setFlipped((f) => !f);
