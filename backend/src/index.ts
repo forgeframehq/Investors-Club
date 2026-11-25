@@ -107,9 +107,17 @@ function seed(text: string) {
   return (h >>> 0) / 4294967296;
 }
 const mockBase = (symbol: string) => Math.round((20 + seed(symbol) * 380) * 100) / 100;
+// The simulation (tests/simulate.js) moves this forward to make prices change from one "day" to the next.
+let mockDay = 0;
+/** Yesterday's close on a made-up day: the base price after a small step up or down for each day so far. */
+const mockClose = (symbol: string, day: number) => {
+  let v = mockBase(symbol);
+  for (let d = 1; d <= day; d++) v *= 1 + (seed(symbol + 'd' + d) - 0.47) * 0.05;
+  return Math.round(v * 100) / 100;
+};
 const mockQuote = (symbol: string): Quote => {
-  const base = mockBase(symbol);
-  const price = Math.round(base * (1 + (seed(symbol + 'x') - 0.4) * 0.05) * 100) / 100;
+  const base = mockClose(symbol, mockDay);
+  const price = Math.round(base * (1 + (seed(symbol + 'x' + (mockDay || '')) - 0.4) * 0.05) * 100) / 100;
   return { price, prev: base, at: Date.now(), hi: Math.round(Math.max(price, base) * 101) / 100, lo: Math.round(Math.min(price, base) * 99) / 100, open: base };
 };
 function mockHistory(symbol: string): HistoryPoint[] {
@@ -464,8 +472,9 @@ async function route(req: Request, env: Env): Promise<Response> {
     return json({ quotes: await getQuotes(env, symbols.length ? symbols : SYMBOLS, { single: symbols.length === 1 }), open: isOpen(env) });
   }
   if (path === '/mock/market' && post && env.MOCK_MARKET) {
-    mockOpen = !!body.open;
-    return json({ open: mockOpen });
+    if (typeof body.open === 'boolean') mockOpen = body.open;
+    if (typeof body.day === 'number') mockDay = body.day;
+    return json({ open: mockOpen, day: mockDay });
   }
   if (path === '/markers') return json({ markers: await getMarkers(env, one()) });
   if (path === '/logos') return json({ logos: await getLogos(env) });
@@ -541,7 +550,12 @@ async function route(req: Request, env: Env): Promise<Response> {
   if (path === '/me') {
     const { student, cls } = await studentFromToken(env, req);
     if (post) {
-      const progress = cleanProgress(body.progress);
+      // Learning lives on the student's device. A new or wiped device starts from zero, so the teacher's numbers
+      // keep the highest seen for everything that only ever goes up; the streak is taken as sent.
+      const sent = cleanProgress(body.progress);
+      const had = parseProgress((await env.DB.prepare('SELECT progress FROM students WHERE id = ?').bind(student.id).first<{ progress: string }>())?.progress ?? '');
+      const up = (k: keyof Progress) => Math.max(sent?.[k] ?? 0, had?.[k] ?? 0);
+      const progress = sent && had ? { lessons: up('lessons'), words: up('words'), cards: up('cards'), badges: up('badges'), level: up('level'), streak: sent.streak } : sent ?? had;
       await env.DB.prepare('UPDATE students SET avatar = ?, progress = ?, seen = ? WHERE id = ?').bind(cleanAvatar(body.avatar) || student.avatar, progress ? JSON.stringify(progress) : '', now(), student.id).run();
     }
     return json({ name: student.name, class: { code: cls.code, name: cls.name }, portfolio: await settle(env, student, cls) });

@@ -33,4 +33,5 @@ until curl -s -m 2 "localhost:$port/api/health" >/dev/null; do
   sleep 1
 done
 
-IC_APP=http://localhost:$port node "$here/e2e.js"
+# Runs the end-to-end test, or another script from this folder: ./run-e2e.sh simulate.js
+IC_APP=http://localhost:$port node "$here/${1:-e2e.js}"

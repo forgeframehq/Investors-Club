@@ -26,6 +26,8 @@ export function PriceChart({ values, labels, color, height = 200 }: { values: nu
   const y = (v: number) => TOP + h - (h * (v - yMin)) / (yMax - yMin);
   const line = values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const last = values.length - 1;
+  // Axis labels need enough detail to differ: cents for a narrow range, whole dollars when thousands barely move.
+  const axis = (v: number) => (yMax - yMin < 4 ? `$${v.toFixed(2)}` : yMax >= 10000 && yMax - yMin < 3000 ? `$${Math.round(v).toLocaleString('en-US')}` : moneyShort(v));
   // At most five x labels, evenly spread, always including the first and last.
   const ticks = values.length <= 5 ? values.map((_, i) => i) : [0, 1, 2, 3, 4].map((k) => Math.round((last * k) / 4));
   return (
@@ -43,7 +45,7 @@ export function PriceChart({ values, labels, color, height = 200 }: { values: nu
             return (
               <React.Fragment key={i}>
                 <Line x1={LEFT} y1={y(v)} x2={width - RIGHT} y2={y(v)} stroke={C.border} strokeWidth={1} />
-                <SvgText x={LEFT - 8} y={y(v) + 4} fill={C.muted} fontSize={11} fontFamily="sans-serif" textAnchor="end">{moneyShort(v)}</SvgText>
+                <SvgText x={LEFT - 8} y={y(v) + 4} fill={C.muted} fontSize={11} fontFamily="sans-serif" textAnchor="end">{axis(v)}</SvgText>
               </React.Fragment>
             );
           })}

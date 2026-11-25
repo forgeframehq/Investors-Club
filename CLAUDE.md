@@ -26,7 +26,8 @@ This repo is the home of the app. It was moved here from `forgeframehq/apps` (fo
   `src/lib/store.ts`, bundled content in `src/data`.
 - `backend/` — Cloudflare Worker + D1: shared prices, logo addresses, teacher accounts, classes, leaderboard, and
   it serves the website. The whole server is `src/index.ts`. Tables create themselves on first use.
-- `tests/` — end-to-end test that drives the web build against a local server with made-up prices.
+- `tests/` — end-to-end test that drives the web build against a local server with made-up prices, and
+  `simulate.js`, a class of 50 students over ten made-up days (`./run-e2e.sh simulate.js`).
 - `app/src/lib/provider.ts`, `rules.ts`, `types.ts` and `data/stocks.ts` are bundled by the server too: no React
   Native imports in them.
 

@@ -13,14 +13,14 @@ import { Emblem, Medal } from '@/ui/art';
 import { Avatar } from '@/ui/avatar';
 import { alertBox } from '@/ui/overlay';
 import { mission } from '@/ui/celebrate';
-import { Bar, Btn, C, Card, Delta, Divider, Empty, Icon, Page, Row, Stat, TabHeader, TapCard, Tile, Txt, type IconName } from '@/ui/kit';
+import { Bar, Btn, C, Card, Delta, Divider, Empty, Icon, Page, PracticeTag, Row, Stat, TabHeader, TapCard, Tile, Txt, type IconName } from '@/ui/kit';
 
 const MIX_COLOURS = ['#4CC2FF', '#2EE6A6', '#B79CFF', '#FFB454', '#FF7A90', '#7CE0E6', '#C8F031', '#FF9D5C', '#8E8E96'];
 
 /** What you own, what it is worth, and how you are doing. */
 export default function PortfolioTab() {
   const router = useRouter();
-  const { cls, settings } = useStore();
+  const { cls, settings, quotes } = useStore();
   useFocusEffect(useCallback(() => { mission('portfolio'); }, []));
   const p = portfolio();
   const total = totalValue(p);
@@ -30,6 +30,11 @@ export default function PortfolioTab() {
   const holdings = [...p.holdings].sort((a, b) => holdingValue(b) - holdingValue(a));
   const mix = SECTORS.map((sector, i) => ({ sector, colour: MIX_COLOURS[i], value: p.holdings.filter((h) => stock(h.symbol).sector === sector).reduce((sum, h) => sum + holdingValue(h), 0) })).filter((m) => m.value > 0);
   const parts = [...mix, { sector: 'Cash', colour: C.cardHi, value: p.cash }];
+  // Today's gain or loss: how far each holding has moved since yesterday's close. Shares bought today are counted
+  // from yesterday's close too, which is how most trading apps show it.
+  const moveOf = (h: { symbol: string; shares: number }) => (quotes[h.symbol] ? h.shares * (quotes[h.symbol].price - quotes[h.symbol].prev) : 0);
+  const today = p.holdings.reduce((sum, h) => sum + moveOf(h), 0);
+  const todayPct = total - today > 0 ? (today / (total - today)) * 100 : 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -51,6 +56,14 @@ export default function PortfolioTab() {
             <Txt size={14} color={Math.abs(gain) < 0.005 ? C.muted : gain > 0 ? C.good : C.bad}>{signedMoney(gain)}</Txt>
             <Txt size={14} color={C.muted}>since you started with {money(p.start, false)}</Txt>
           </Row>
+          {p.holdings.length > 0 && (
+            <Row gap={8}>
+              <Txt size={14} bold color={C.muted}>Today</Txt>
+              <Delta value={todayPct} pill />
+              <Txt size={14} color={Math.abs(today) < 0.005 ? C.muted : today > 0 ? C.good : C.bad}>{signedMoney(today)}</Txt>
+            </Row>
+          )}
+          <PracticeTag />
           <Divider />
           <Row gap={28}>
             <Stat title="Cash" value={money(p.cash)} />
@@ -64,7 +77,7 @@ export default function PortfolioTab() {
             <Emblem level={lv.number} size={48} />
             <View style={{ flex: 1 }}>
               <Txt size={16} bold>{lv.name}</Txt>
-              <Txt size={13} color={C.muted}>{lv.next ? `${lv.points} points · ${lv.next - lv.points} to the next level` : `${lv.points} points · top level`}</Txt>
+              <Txt size={13} color={C.muted}>{lv.next ? `${lv.points} points · ${lv.next - lv.points} to the next rank` : `${lv.points} points · top rank`}</Txt>
             </View>
           </Row>
           <Bar value={lv.progress} />
@@ -85,7 +98,7 @@ export default function PortfolioTab() {
         ) : (
           <>
             <Card>
-              <Txt size={17} bold>Your mix</Txt>
+              <Txt size={17} bold>Allocation: your mix</Txt>
               <View style={{ flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden' }}>
                 {parts.map((m) => <View key={m.sector} style={{ flex: m.value / total, backgroundColor: m.colour }} />)}
               </View>
@@ -108,7 +121,8 @@ export default function PortfolioTab() {
                   <Tile symbol={h.symbol} />
                   <View style={{ flex: 1, gap: 1 }}>
                     <Txt size={16} bold lines={1}>{stock(h.symbol).name}</Txt>
-                    <Txt size={13} color={C.muted}>{fmtShares(h.shares)}</Txt>
+                    <Txt size={13} color={C.muted}>{fmtShares(h.shares)} · {Math.round((value / total) * 100)}% of your portfolio</Txt>
+                    <Txt size={12} color={Math.abs(moveOf(h)) < 0.005 ? C.muted : moveOf(h) > 0 ? C.good : C.bad}>Today {signedMoney(moveOf(h))}</Txt>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 3 }}>
                     <Txt size={16} bold>{money(value)}</Txt>

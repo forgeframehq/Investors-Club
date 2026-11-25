@@ -124,3 +124,15 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
 - **Buying is locked until Level 1 is passed.** Tests that buy must pass the four lessons first (`pass` and
   `LEVEL1` in `tests/e2e.js`). Passing lessons also raises rank sooner, so more "rank up" boxes appear after a
   badge: dismiss them in a loop.
+
+## 2026-11-25 — 50-student simulation
+
+- **`tests/simulate.js`** (`./run-e2e.sh simulate.js`) runs a class of 50 over ten made-up days: trades ten at a
+  time, orders across a closed morning, two buys at the same instant, the 61st student, then screenshots. The
+  made-up prices move by day through `POST /api/mock/market {day}`.
+- **A student on a new device wiped the teacher's learning numbers.** Learning lives on the device, and the new
+  device sent zeros. The server now keeps the highest value seen for lessons, words, cards, badges and rank.
+  The student's own device still starts from zero: restoring learning to a new device is not built.
+- **Chart axis labels repeated ("$10k" four times)** when the range was small. Labels now show whole dollars or
+  cents when the range is narrow.
+- **Students can no longer reset the practice portfolio.** Only a teacher can restart a class.

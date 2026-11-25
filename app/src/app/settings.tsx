@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 
 import { money } from '@/lib/format';
 import { ACCENTS, DEFAULT_ACCENT } from '@/lib/theme';
-import { resetSolo, setSetting, START_CASH, startOver, useStore } from '@/lib/store';
+import { setSetting, startOver, useStore } from '@/lib/store';
 import { Avatar } from '@/ui/avatar';
 import { Btn, C, Card, Icon, LinkRow, Page, Row, TapCard, Txt } from '@/ui/kit';
 import { confirm, toast } from '@/ui/overlay';
@@ -13,11 +13,6 @@ export default function Settings() {
   const { settings } = useStore();
   const accent = settings.accent ?? DEFAULT_ACCENT;
 
-  const reset = async () => {
-    if (!(await confirm('Start the practice portfolio again?', `Your practice stocks and trades are cleared and you get ${money(START_CASH, false)} of practice money. Class portfolios and badges from learning are not affected.`, 'Start again', { danger: true }))) return;
-    resetSolo();
-    toast('Practice portfolio reset');
-  };
 
   const fresh = async () => {
     if (!(await confirm('Start over on this device?', 'Your name, picture, practice portfolio, badges and learning on this device are cleared, and you leave your class here. A class portfolio is kept by the class server: join again with the same name and PIN to get it back.', 'Start over', { danger: true }))) return;
@@ -53,9 +48,8 @@ export default function Settings() {
         ))}
       </Row>
 
-      <Txt size={18} bold>Start again</Txt>
+      <Txt size={18} bold>This device</Txt>
       <View>
-        <LinkRow icon="refresh-outline" title="Reset practice portfolio" onPress={reset} />
         <LinkRow icon="log-out-outline" title="Start over as a new student" onPress={fresh} />
       </View>
 

@@ -115,7 +115,7 @@ export default function TeacherClass() {
   };
   /** Saves the students table as a spreadsheet file. Browser only. */
   const download = () => {
-    const head = ['Rank', 'Student', 'Full name', 'Value', 'Change %', 'Cash', 'Stocks', 'Trades', 'Level', 'Lessons passed', 'Words read', 'Flashcards known', 'Badges', 'Learning streak', 'Buys', 'Buys checked first', 'Last active'];
+    const head = ['Rank', 'Student', 'Full name', 'Value', 'Change %', 'Cash', 'Stocks', 'Trades', 'Learning rank', 'Lessons passed', 'Words read', 'Flashcards known', 'Badges', 'Learning streak', 'Buys', 'Buys checked first', 'Last active'];
     const lines = all.map((s) => [rank.get(s.id) ?? '', s.name, s.fullName ?? '', s.value.toFixed(2), s.gainPct.toFixed(2), s.cash.toFixed(2), s.companies, s.trades, s.progress?.level ?? '', s.progress?.lessons ?? '', s.progress?.words ?? '', s.progress?.cards ?? '', s.progress?.badges ?? '', s.progress?.streak ?? '', s.buys ?? 0, s.checked ?? 0, s.seen]);
     const text = [head, ...lines].map((row) => row.map(csvCell).join(',')).join('\n');
     const link = document.createElement('a');
@@ -212,7 +212,7 @@ export default function TeacherClass() {
                 <Txt size={34} bold style={{ flex: 1, letterSpacing: 4 }}>{code}</Txt>
                 <Btn title="Copy" kind="ghost" icon="copy-outline" height={42} onPress={copyCode} />
               </Row>
-              <Txt size={14} color={C.muted}>Students open the Class tab, choose {teacher.school || 'their school'} and this class, then enter this code, a first name with last initial, and a PIN they choose.</Txt>
+              <Txt size={14} color={C.muted}>Students open the Class tab, choose {teacher.school || 'their school'} and this class, then enter this code and choose a PIN. Classmates see their first name and last initial; you see the full name.</Txt>
             </Card>
             {cls && all.length === 0 && <Empty icon="people-outline" title="Nobody has joined yet" body="Share the class code. Students appear here as they join." />}
             {all.length > 0 && (
@@ -279,7 +279,7 @@ export default function TeacherClass() {
                 {head('Change', { ...col.wide, textAlign: 'right' })}
                 {head('Stocks', col.num)}
                 {head('Trades', col.num)}
-                {head('Level', col.num)}
+                {head('Rank', col.num)}
                 {head('Lessons', col.num)}
                 {head('Words', col.num)}
                 {head('Cards', col.num)}
