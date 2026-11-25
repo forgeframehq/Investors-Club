@@ -54,7 +54,8 @@ cd ../tests && ./run-e2e.sh                                        # drives the 
 - **Colours come from `src/lib/theme.ts`** and are read at render time (`C.accent`, with `C.onAccent` for anything
   drawn on it), so the in-app colour picker works. Do not copy them into module-level constants.
 - **No `Alert.alert`.** Use the promise-based dialogs in `src/ui/overlay.tsx`; they also work in the browser test.
-- **Plain words in the interface**, written for a ten-year-old. Badges and levels reward learning and spreading
+- **Plain words in the interface.** Lessons are pitched at ages 12 to 14: proper terms, each explained once, and
+  real companies as examples (Sudhi found a lemonade-stand story too childish). Badges and levels reward learning and spreading
   risk, never trading often.
 - **Bundled images get numeric file names.** Android merges asset names that differ only in punctuation or case.
 - **Secrets never go in the repo:** data keys, tokens, signing keys, `.dev.vars`.

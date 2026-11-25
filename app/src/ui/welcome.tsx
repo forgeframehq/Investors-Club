@@ -83,7 +83,7 @@ export function Welcome() {
     keep();
     db.settings.onboarded = true;
     commit();
-    router.push('/lesson/money');
+    router.push('/lesson/market?first=1');
   };
   const like = (symbol: string) => setLiked(liked.includes(symbol) ? liked.filter((s) => s !== symbol) : liked.length < 3 ? [...liked, symbol] : liked);
 
@@ -147,7 +147,7 @@ export function Welcome() {
             <View style={{ gap: 16, marginTop: 8 }}>
               <Point icon="cash-outline" title={`${money(START_CASH, false)} of practice money`} body="It is not real money, so it is safe to try things out." />
               <Point icon="pulse-outline" title="Real companies, real prices" body="Buy pieces of companies you know, including ones based right here in Bermuda." />
-              <Point icon="trophy-outline" title="Learn step by step" body="Short lessons that start from the very beginning, then flashcards, badges and your class table." />
+              <Point icon="trophy-outline" title="Learn step by step" body="Short lessons with real companies, then flashcards, badges and your class table." />
             </View>
           </>
         )}

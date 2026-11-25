@@ -164,8 +164,8 @@ and Twelve Data calls, including real logos, are not covered by it. Check those 
 
 ## Learning path (added 2026-11-24)
 
-- Ten lessons in order, from "Money, companies and profit" to "The shop and the queue", told through one story
-  (Sunny's lemonade stand). Cards can hold something to tap (`ui/play.tsx`) and hard words that open the glossary
+- Nine lessons in order, from "What is the stock market?" to "The company and the crowd", written for ages 12
+  to 14 with real companies and proper terms. Every lesson has "Skip to the quiz". Cards can hold something to tap (`ui/play.tsx`) and hard words that open the glossary
   (`[word](term-id)` in `data/lessons.ts`). `{b1}` to `{b3}` are the three companies picked at sign-up.
 - Sign-up ends with a school drop-down (every Bermuda school), then the class and its code. The first lesson
   opens straight after, and a trial buy (`/first-buy`) uses a spare $100 that never touches the portfolio.

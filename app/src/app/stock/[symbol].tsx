@@ -146,14 +146,14 @@ export default function StockScreen() {
         {views.length > 0 && <Txt size={12} color={C.muted}>Markers describe a company. No single marker tells you to buy or sell.</Txt>}
 
         <View style={{ gap: 4, marginTop: 4 }}>
-          <Txt size={18} bold>The shop and the queue</Txt>
+          <Txt size={18} bold>The company and the crowd</Txt>
           <Txt size={14} color={C.muted}>{metersOn ? 'The company and the crowd, side by side.' : 'Two meters that unlock when you pass the last lesson.'}</Txt>
         </View>
         {!metersOn ? (
           <Card>
             <Row>
               <Icon name="lock-closed-outline" color={C.muted} />
-              <Txt size={15} style={{ flex: 1 }}>Pass the lesson "The shop and the queue" to see the Company meter and the Crowd meter here.</Txt>
+              <Txt size={15} style={{ flex: 1 }}>Pass the lesson "The company and the crowd" to see the Company meter and the Crowd meter here.</Txt>
             </Row>
             <Btn title="Open the lesson" kind="ghost" onPress={() => router.push(`/lesson/${METERS_LESSON}`)} />
           </Card>

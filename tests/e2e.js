@@ -56,10 +56,12 @@ function driver(p, errs) {
   check((await text()).includes('Warwick Academy') && (await text()).includes('CedarBridge Academy') && await tap('My school is not on the list'), 'every Bermuda school is in the drop-down');
   check(await tap('Start with a practice portfolio'), 'a school with no class starts with the practice portfolio'); await sleep(700); await shot('00-first-lesson');
   t = await text();
-  check(t.includes('Meet Sunny') && t.includes('Lesson 1 of 10'), 'the first lesson opens straight after signing up');
-  check(await tap('Next') && await tap('What does company mean?'), 'tap a hard word in a lesson'); await sleep(300); await shot('00-word');
-  check((await text()).includes('Public company'), 'the word is explained'); await tap('OK'); await sleep(200);
-  check(await tap('Next') && await tap('Sell a cup') && await tap('Sell a cup') && /2 cups sold/.test(await text()), 'a lesson card has something to tap'); await shot('00-lesson-play');
+  check(t.includes('A market for ownership') && t.includes('Lesson 1 of 9') && t.includes('Roblox'), 'the first lesson is "What is the stock market?", using a company the student picked');
+  check(await tap('What does stock market mean?'), 'tap a term in a lesson'); await sleep(300); await shot('00-word');
+  check((await text()).includes('Stock market'), 'the term is explained'); await tap('OK'); await sleep(200);
+  check(await tap('Skip for now') && !(await text()).includes('A market for ownership'), 'the first lesson can be skipped'); await sleep(400);
+  await go('/lesson/prices'); await tap('Next');
+  check(await tap('Add a buyer') && /More people want to buy/.test(await text()), 'a lesson card has something to tap'); await shot('00-lesson-play');
   let d = await data();
   check(d.settings.onboarded && d.settings.name === 'Sam' && d.settings.avatar === 'turtle' && d.settings.brands.join() === 'RBLX,DIS,NKE' && d.watch.includes('RBLX'), 'the profile and the three companies are saved');
 
@@ -147,13 +149,10 @@ function driver(p, errs) {
   // ---- Learn ----
   await go('/learn'); await shot('09-learn');
   t = await text();
-  check(t.includes('Learning path') && /\d of 10 lessons done/.test(t) && t.includes('UP NEXT') && t.includes('Learning streak'), 'Learn shows the ten-lesson path, what is next, and the learning streak');
+  check(t.includes('Learning path') && /\d of 9 lessons done/.test(t) && t.includes('UP NEXT') && t.includes('Learning streak'), 'Learn shows the nine-lesson path, what is next, and the learning streak');
   check(await tap('Lesson What is a share worth?'), 'open a lesson'); await sleep(500); await shot('10-lesson');
-  await tap('Next'); await tap('Next');
-  check((await text()).includes('Roblox'), 'lessons use the companies the student picked');
-  for (let i = 0; i < 4; i++) await tap(i === 3 ? 'Start the quiz' : 'Next');
-  check((await text()).includes('What do you own when you buy a share?'), 'quiz starts after the cards');
-  for (const a of [2, 1, 22, 3]) { await tap(`Answer ${a % 10}`); await sleep(200); if (a === 2) await shot('11-quiz'); await tap((await text()).includes('See my score') ? 'See my score' : 'Next question'); }
+  check(await tap('Skip to the quiz') && (await text()).includes('What is its market cap?'), 'any lesson can be skipped straight to its quiz');
+  for (const a of [1, 2, 22, 1]) { await tap(`Answer ${a % 10}`); await sleep(200); if (a === 2) await shot('11-quiz'); await tap((await text()).includes('See my score') ? 'See my score' : 'Next question'); }
   await sleep(600); await shot('12-lesson-done');
   t = await text();
   check(t.includes('Badge earned: Quick Learner'), 'passing a quiz earns a badge'); await tap('OK'); await sleep(300);
@@ -169,7 +168,7 @@ function driver(p, errs) {
   // ---- The shop and the queue: meters unlock after the last lesson, and a real-chart game ----
   await go('/lesson/shop-queue'); await sleep(400);
   for (let i = 0; i < 5; i++) await tap('Next');
-  check((await text()).includes('Shop or queue?') && await tap('The shop') && /about the company/.test(await text()), 'the shop-or-queue game is part of the last lesson'); await shot('12-shop-queue');
+  check((await text()).includes('Company or crowd?') && await tap('The company') && /about the company/.test(await text()), 'the company-or-crowd game is part of the last lesson'); await shot('12-shop-queue');
   await tap('Next one'); await tap('Next'); await tap('Start the quiz');
   for (const a of [1, 2, 2, 3]) { await tap(`Answer ${a}`); await sleep(200); await tap((await text()).includes('See my score') ? 'See my score' : 'Next question'); }
   await sleep(500);
@@ -258,7 +257,7 @@ function driver(p, errs) {
   check(await welcome(s, 'Picture Robot'), 'a new student goes through the welcome steps'); await s.shot('16-join-school');
   check(await s.tap('Choose your school') && await s.tap('Warwick Academy') && await s.tap('Choose your class') && await s.tap('P6 Blue (Ms Smith)'), 'student chooses their school and class from the drop-downs'); await s.shot('16-join-chosen');
   check(await s.type('Class code', code) && await s.type('Your name', 'Sam T') && await s.type('PIN', '1234') && await s.tap('Join my class'), 'student joins with code, name and PIN'); await sleep(1500);
-  check((await s.text()).includes('Meet Sunny'), 'after joining, the first lesson opens');
+  check((await s.text()).includes('A market for ownership'), 'after joining, the first lesson opens');
   await s.go('/class'); await sleep(900); await s.shot('17-leaderboard');
   t = await s.text();
   check(t.includes('P6 Blue') && t.includes('Sam T (you)') && t.includes('Alex R'), 'student sees the class leaderboard');

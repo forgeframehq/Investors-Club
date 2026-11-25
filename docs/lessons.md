@@ -108,3 +108,9 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
   `tests/e2e.js`); it can be skipped only after three buys.
 - **No countdowns for children.** The "Shop or queue?" game was planned with a 60-second timer and built without
   one.
+
+## 2026-11-24 — Lessons rewritten
+
+- **The first lessons were pitched too young.** A lemonade-stand story and a lesson on "what is a company" read
+  as babyish. The path now starts at "What is the stock market?", uses real companies and proper terms, and every
+  lesson can be skipped to its quiz. Ask the age group before writing teaching content.

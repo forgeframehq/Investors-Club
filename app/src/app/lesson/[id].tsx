@@ -13,12 +13,12 @@ import { Words } from '@/ui/words';
 
 /** A lesson: a few cards (one idea each, some with something to tap), then a quiz. `review` is three questions from any lesson. */
 export default function LessonScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, first } = useLocalSearchParams<{ id: string; first?: string }>();
   // The key starts the screen afresh when one lesson leads straight into the next.
-  return <LessonBody key={String(id)} id={String(id)} />;
+  return <LessonBody key={String(id)} id={String(id)} first={!!first} />;
 }
 
-function LessonBody({ id }: { id: string }) {
+function LessonBody({ id, first }: { id: string; first: boolean }) {
   const router = useRouter();
   const { settings } = useStore();
   const [l] = useState(() => (id === 'review' ? reviewLesson() : lesson(String(id))));
@@ -73,7 +73,11 @@ function LessonBody({ id }: { id: string }) {
             {step > 0 && <Btn title="Back" kind="ghost" style={{ flex: 1 }} onPress={() => setStep(step - 1)} />}
             <Btn title={step === l.cards.length - 1 ? 'Start the quiz' : 'Next'} style={{ flex: 2 }} onPress={() => setStep(step + 1)} />
           </Row>
-          <Txt size={12} color={C.muted} center>Tap an underlined word to see what it means.</Txt>
+          <Row style={{ justifyContent: 'center' }}>
+            <Btn title="Skip to the quiz" kind="text" onPress={() => setStep(l.cards.length)} />
+            {first && <Btn title="Skip for now" kind="plain" onPress={() => router.replace('/')} />}
+          </Row>
+          <Txt size={12} color={C.muted} center>Know this already? Pass the quiz and the lesson counts. Tap an underlined word to see what it means.</Txt>
         </>
       )}
 
