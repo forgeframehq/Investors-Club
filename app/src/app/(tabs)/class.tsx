@@ -6,7 +6,7 @@ import { SCHOOLS } from '@/data/schools';
 import { joinClass, leaderboard, leaveClass, schoolClasses, schools, syncPortfolio } from '@/lib/classroom';
 import { money } from '@/lib/format';
 import { serverUrl } from '@/lib/market';
-import { useStore } from '@/lib/store';
+import { useStore, setSetting, shortName } from '@/lib/store';
 import type { SchoolStanding, Standing } from '@/lib/types';
 import { Avatar } from '@/ui/avatar';
 import { Btn, C, Card, Delta, Empty, Field, Icon, Row, TabHeader, Txt, WIDE } from '@/ui/kit';
@@ -22,7 +22,8 @@ export default function ClassTab() {
   const [classes, setClasses] = useState<ClassChoice[] | null>(null);
   const [choice, setChoice] = useState<ClassChoice | null>(null);
   const [code, setCode] = useState('');
-  const [name, setName] = useState([settings.name, settings.initial].filter(Boolean).join(' '));
+  const [name, setName] = useState(shortName());
+  const [last, setLast] = useState(settings.last ?? '');
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -72,6 +73,7 @@ export default function ClassTab() {
     setBusy(true);
     setError('');
     try {
+      if (last.trim()) setSetting('last', last.trim());
       await joinClass(choice?.id ?? '', code, name, pin);
       setPin('');
       toast('You are in. Your class portfolio starts now.');
@@ -112,6 +114,7 @@ export default function ClassTab() {
                   {classes && classes.length > 0 && <Btn title={choice ? `${choice.name} (${choice.teacher})` : 'Choose your class'} kind="ghost" left icon="people-outline" onPress={chooseClass} />}
                   <Field accessibilityLabel="Class code" placeholder="Class code from your teacher" value={code} onChangeText={(t) => setCode(t.toUpperCase())} autoCapitalize="characters" autoCorrect={false} maxLength={6} style={{ backgroundColor: C.cardHi }} />
                   <Field accessibilityLabel="Your name" placeholder="First name and last initial" value={name} onChangeText={setName} maxLength={20} autoCorrect={false} style={{ backgroundColor: C.cardHi }} />
+                  <Field accessibilityLabel="Your last name" placeholder="Last name (only your teacher sees it)" value={last} onChangeText={setLast} maxLength={20} autoCorrect={false} autoCapitalize="words" />
                   <Field accessibilityLabel="PIN" placeholder="Choose a PIN (4 digits)" value={pin} onChangeText={(t) => setPin(t.replace(/\D/g, ''))} keyboardType="number-pad" secureTextEntry maxLength={8} style={{ backgroundColor: C.cardHi }} />
                   {!!error && <Txt size={14} color={C.bad}>{error}</Txt>}
                   <Btn title="Join class" busy={busy} disabled={!choice || !code.trim() || !name.trim() || pin.length < 4} onPress={join} />

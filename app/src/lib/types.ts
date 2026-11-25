@@ -71,8 +71,8 @@ export type Level = 'simple' | 'detailed';
 export interface Settings {
   /** First name shown on the Portfolio tab and used to fill in the class join form. */
   name: string;
-  /** The first letter of the surname. With the first name it tells classmates apart; a full surname is never asked for. */
-  initial?: string;
+  /** Last name. Kept on this device and sent only when joining a class, where only the teacher sees it. */
+  last?: string;
   /** Id of the picture chosen in the welcome steps (see data/avatars.ts). */
   avatar: string;
   /** True once the welcome steps have been finished on this device. */
@@ -175,6 +175,8 @@ export interface StudentDetail extends Standing {
   progress: Progress | null;
   /** When they last traded or opened the app in this class (ISO UTC), or '' if never since joining. */
   seen: string;
+  /** Their full name, for the teacher only. Empty if they joined before it was asked for. */
+  fullName?: string;
   /** How many times they bought, and how many of those went through "Check before you buy". */
   buys?: number;
   checked?: number;

@@ -45,8 +45,10 @@ cd ../tests && ./run-e2e.sh                                        # drives the 
   address): everything comes from our server. Students use the tabs. Teachers use the teacher area (`/teacher`,
   `/teacher-class`), which has its own header (`ui/teacher-bar.tsx`) and never shows the student welcome steps.
 - **Local-first.** The app works with no account and no network, apart from prices. Classes are optional.
-- **Children use this.** No photos, no email addresses, no surnames: a student is a first name with a last
-  initial, a PIN and a built-in picture. Do not add anything that collects more without asking Sudhi first.
+- **Children use this.** No photos, no email addresses. Sudhi chose (2026-11-25) to collect the student's full
+  name: it is stored as `full_name` and sent only to that student's teacher. Classmates, leaderboards and school
+  tables only ever get first name and last initial (`name`). Never add `full_name` to a student-facing response.
+  Do not add anything that collects more without asking Sudhi first.
 - **Expo APIs change between SDK versions.** Check the installed package's `.d.ts` in `node_modules` before using
   an Expo API; do not write it from memory.
 - **Every pressable has an `accessibilityLabel`.** The end-to-end test finds controls by label, and screen readers

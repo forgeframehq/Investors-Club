@@ -273,6 +273,9 @@ export const streak = () => (db.play.learnDay === dayKey() || db.play.learnDay =
 export const learnedAlready = () => db.play.learnDay === dayKey();
 
 /** The companies picked in the welcome steps, with well-known ones filling any gap. Lessons use them as examples. */
+/** How classmates see a student: first name and last initial, like "Sam T". The full name goes to the teacher only. */
+export const shortName = (first = db.settings.name, last = db.settings.last ?? '') => [first.trim(), last.trim().slice(0, 1).toUpperCase()].filter(Boolean).join(' ');
+
 export function brands(): Stock[] {
   const picked = (db.settings.brands ?? []).filter((x) => bySymbol.has(x));
   return [...new Set([...picked, 'DIS', 'NKE', 'MCD'])].slice(0, 3).map(stock);

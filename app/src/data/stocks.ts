@@ -12,10 +12,10 @@ const s = (symbol: string, name: string, sector: Sector, about: string): Stock =
 export const STOCKS: Stock[] = [
   s('AAPL', 'Apple', 'Tech', 'Makes the iPhone, iPad and Mac, and runs the App Store.'),
   s('MSFT', 'Microsoft', 'Tech', 'Makes Windows, Office and the Xbox, and rents out huge computers over the internet.'),
-  s('GOOGL', 'Alphabet (Google)', 'Tech', 'Owns Google Search, YouTube and Android. Most of its money comes from adverts.'),
+  s('GOOGL', 'Google (Alphabet)', 'Tech', 'Owns Google Search, YouTube and Android. Most of its money comes from adverts.'),
   s('AMZN', 'Amazon', 'Tech', 'Sells almost everything online and delivers it. Also rents computing power to other companies.'),
   s('NVDA', 'Nvidia', 'Tech', 'Designs the powerful chips used for video games and artificial intelligence.'),
-  s('META', 'Meta (Instagram)', 'Tech', 'Owns Instagram, WhatsApp and Facebook. Most of its money comes from adverts.'),
+  s('META', 'Instagram (Meta)', 'Tech', 'Owns Instagram, WhatsApp and Facebook. Most of its money comes from adverts.'),
   s('AMD', 'AMD', 'Tech', 'Designs computer chips, including the ones inside the PlayStation and Xbox.'),
   s('DUOL', 'Duolingo', 'Tech', 'Runs the Duolingo app for learning languages. Some people pay to remove adverts.'),
   s('NFLX', 'Netflix', 'Tech', 'Streams films and series to people who pay a monthly fee.'),
@@ -34,7 +34,7 @@ export const STOCKS: Stock[] = [
   s('KO', 'Coca-Cola', 'Food & Drink', 'Makes Coca-Cola, Sprite, Fanta and many other drinks.'),
   s('PEP', 'PepsiCo', 'Food & Drink', 'Makes Pepsi and Gatorade, and snacks such as Lay\'s and Doritos.'),
   s('CMG', 'Chipotle', 'Food & Drink', 'Restaurants that make burritos and bowls to order.'),
-  s('YUM', 'Yum! Brands (KFC)', 'Food & Drink', 'Owns KFC, Pizza Hut and Taco Bell.'),
+  s('YUM', 'KFC (Yum! Brands)', 'Food & Drink', 'Owns KFC, Pizza Hut and Taco Bell.'),
   s('HSY', 'Hershey', 'Food & Drink', 'Makes chocolate and sweets such as Hershey\'s and Reese\'s.'),
 
   s('NKE', 'Nike', 'Shops & Style', 'Designs and sells trainers and sports clothing.'),

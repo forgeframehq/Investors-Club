@@ -54,7 +54,7 @@ function driver(p, errs) {
   };
   const LEVEL1 = [['market', [1, 2, 2]], ['what-is-a-stock', [2, 1, 2]], ['exchanges', [1, 1, 2]], ['orders', [2, 2, 3]]];
   // The welcome steps up to choosing a school: name, picture, reading level, three companies.
-  const welcome = async (d, picture) => (await d.tap('Get started')) && (await d.type('Your first name', 'Sam')) && (await d.type('Last initial', 't')) && (await d.tap(picture)) && (await d.tap('Next')) && (await d.tap('Keep it simple')) && (await d.tap('Next')) && (await d.tap('Pick Roblox')) && (await d.tap('Pick Disney')) && (await d.tap('Pick Nike')) && (await d.tap('Next'));
+  const welcome = async (d, picture) => (await d.tap('Get started')) && (await d.type('Your first name', 'Sam')) && (await d.type('Your last name', 'Trott')) && (await d.tap(picture)) && (await d.tap('Next')) && (await d.tap('Keep it simple')) && (await d.tap('Next')) && (await d.tap('Pick Roblox')) && (await d.tap('Pick Disney')) && (await d.tap('Pick Nike')) && (await d.tap('Next'));
   let t;
 
   // ---- Welcome: name, picture, reading level, three companies, school ----
@@ -73,7 +73,7 @@ function driver(p, errs) {
   await go('/lesson/prices'); await tap('Next');
   check(await tap('Add a buyer') && /More people want to buy/.test(await text()), 'a lesson card has something to tap'); await shot('00-lesson-play');
   let d = await data();
-  check(d.settings.onboarded && d.settings.name === 'Sam' && d.settings.initial === 'T' && d.settings.avatar === 'turtle' && d.settings.brands.join() === 'RBLX,DIS,NKE' && d.watch.includes('RBLX'), 'the profile and the three companies are saved');
+  check(d.settings.onboarded && d.settings.name === 'Sam' && d.settings.last === 'Trott' && d.settings.avatar === 'turtle' && d.settings.brands.join() === 'RBLX,DIS,NKE' && d.watch.includes('RBLX'), 'the profile and the three companies are saved');
 
   // ---- The trial buy: step by step, without touching the real portfolio ----
   await go('/'); await shot('01-home-start');
@@ -277,7 +277,7 @@ function driver(p, errs) {
   await s.go('/');
   check(await welcome(s, 'Picture Robot'), 'a new student goes through the welcome steps'); await s.shot('16-join-school');
   check(await s.tap('Choose your school') && await s.tap('Warwick Academy') && await s.tap('Choose your class') && await s.tap('P6 Blue (Ms Smith)'), 'student chooses their school and class from the drop-downs'); await s.shot('16-join-chosen');
-  check(await s.type('Class code', code) && await s.type('Your name', 'Sam T') && await s.type('PIN', '1234') && await s.tap('Join my class'), 'student joins with code, name and PIN'); await sleep(1500);
+  check((await s.text()).includes('Your class will see you as Sam T') && await s.type('Class code', code) && await s.type('PIN', '1234') && await s.tap('Join my class'), 'student joins with code, name and PIN'); await sleep(1500);
   check((await s.text()).includes('A market for ownership'), 'after joining, the first lesson opens');
   await s.go('/class'); await sleep(900); await s.shot('17-leaderboard');
   t = await s.text();
@@ -325,6 +325,9 @@ function driver(p, errs) {
   const cls = await api(`/teacher/class?code=${code}`, null, teacherToken);
   const sam = cls.standings.find((x) => x.name === 'Sam T');
   check(sam && sam.holdings[0].symbol === 'NTB' && Math.abs(sam.cash - 8000) < 1, 'the class server holds the trade');
+  const board = await api('/leaderboard', null, (await s.data()).cls.token);
+  check(board.standings && board.standings.some((x) => x.name === 'Sam T'), 'the student leaderboard shows first name and last initial');
+  check(sam && sam.fullName === 'Sam Trott' && !JSON.stringify(board).includes('Trott'), 'the teacher gets the full name; the student leaderboard never does');
   check(sam && sam.buys === 1 && sam.checked === 1 && sam.recent[0].why === 'spread', 'the class server keeps the reason for the buy');
   const alex = cls.standings.find((x) => x.name === 'Alex R');
   check(alex && alex.buys >= 2 && alex.checked === 0, 'buys made without the check are counted as unchecked');

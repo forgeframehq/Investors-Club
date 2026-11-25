@@ -43,7 +43,7 @@ export async function schoolClasses(school: string): Promise<{ id: string; name:
 /** Joins a class, or signs back in on a new device if the name and PIN match. `classId` is the class picked from the list. */
 export async function joinClass(classId: string, code: string, name: string, pin: string) {
   const server = needServer();
-  const j = await call(server, '/join', { class: classId || undefined, code: code.trim().toUpperCase(), name: name.trim(), pin: pin.trim(), avatar: db.settings.avatar });
+  const j = await call(server, '/join', { class: classId || undefined, code: code.trim().toUpperCase(), name: name.trim(), fullName: [db.settings.name, db.settings.last].filter(Boolean).join(' '), pin: pin.trim(), avatar: db.settings.avatar });
   const link: ClassLink = { server, code: j.class.code, className: j.class.name, school: j.class.school, token: j.token, name: j.name };
   db.cls = link;
   setClassPortfolio(j.portfolio as ServerPortfolio);

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SCHOOLS } from '@/data/schools';
 import { joinClass, schoolClasses, schools } from '@/lib/classroom';
 import { money } from '@/lib/format';
-import { commit, db, START_CASH, stock } from '@/lib/store';
+import { commit, db, shortName, START_CASH, stock } from '@/lib/store';
 import type { Level } from '@/lib/types';
 
 import { Avatar, AvatarPicker } from './avatar';
@@ -59,7 +59,7 @@ export function Welcome() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [name, setName] = useState(db.settings.name);
-  const [initial, setInitial] = useState(db.settings.initial ?? '');
+  const [last, setLast] = useState(db.settings.last ?? '');
   const [pic, setPic] = useState(db.settings.avatar || 'surfer');
   const [level, setLevel] = useState<Level>(db.settings.level);
   const [liked, setLiked] = useState<string[]>([]);
@@ -67,14 +67,13 @@ export function Welcome() {
   const [classes, setClasses] = useState<ClassChoice[] | null>(null);
   const [choice, setChoice] = useState<ClassChoice | null>(null);
   const [code, setCode] = useState('');
-  const [fullName, setFullName] = useState('');
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const keep = () => {
     db.settings.name = name.trim();
-    db.settings.initial = initial;
+    db.settings.last = last.trim();
     db.settings.avatar = pic;
     db.settings.level = level;
     db.settings.brands = liked;
@@ -117,7 +116,7 @@ export function Welcome() {
     setError('');
     try {
       keep();
-      await joinClass(choice?.id ?? '', code, fullName || `${name.trim()} ${initial}`, pin);
+      await joinClass(choice?.id ?? '', code, shortName(name, last), pin);
       finish();
     } catch (e) {
       setError((e as Error).message);
@@ -159,12 +158,13 @@ export function Welcome() {
             <View style={{ alignItems: 'center', gap: 10 }}>
               <Avatar id={pic} name={name} size={92} />
               <Txt size={26} bold center>Make your profile</Txt>
-              <Txt size={15} color={C.muted} center>Your first name and the first letter of your last name. Then pick a picture.</Txt>
+              <Txt size={15} color={C.muted} center>Your first and last name. Then pick a picture.</Txt>
             </View>
             <Row>
-              <Field accessibilityLabel="Your first name" placeholder="First name" value={name} onChangeText={setName} maxLength={18} autoCorrect={false} autoCapitalize="words" style={{ flex: 3 }} />
-              <Field accessibilityLabel="Last initial" placeholder="Last initial" value={initial} onChangeText={(t) => setInitial(t.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase())} maxLength={1} autoCorrect={false} autoCapitalize="characters" style={{ flex: 2 }} />
+              <Field accessibilityLabel="Your first name" placeholder="First name" value={name} onChangeText={setName} maxLength={18} autoCorrect={false} autoCapitalize="words" style={{ flex: 1 }} />
+              <Field accessibilityLabel="Your last name" placeholder="Last name" value={last} onChangeText={setLast} maxLength={20} autoCorrect={false} autoCapitalize="words" style={{ flex: 1 }} />
             </Row>
+            <Txt size={12} color={C.muted} center>Only your teacher sees your full name. Classmates see {name.trim() && last.trim() ? shortName(name, last) : 'your first name and last initial'}.</Txt>
             <AvatarPicker value={pic} onChange={setPic} />
           </>
         )}
@@ -207,9 +207,9 @@ export function Welcome() {
                 {choice && (
                   <>
                     <Field accessibilityLabel="Class code" placeholder="Class code from your teacher" value={code} onChangeText={(t) => setCode(t.toUpperCase())} autoCapitalize="characters" autoCorrect={false} maxLength={6} />
-                    <Field accessibilityLabel="Your name" placeholder="First name and last initial" value={fullName || `${name.trim()} ${initial}`} onChangeText={setFullName} maxLength={20} autoCorrect={false} />
+                    <Txt size={14} color={C.muted}>Your class will see you as <Txt size={14} bold>{shortName(name, last)}</Txt>.</Txt>
                     <Field accessibilityLabel="PIN" placeholder="Choose a PIN (4 digits)" value={pin} onChangeText={(t) => setPin(t.replace(/\D/g, ''))} keyboardType="number-pad" secureTextEntry maxLength={8} />
-                    <Txt size={12} color={C.muted}>Remember your PIN. You need your name and PIN to get back in on another device. No email or surname needed.</Txt>
+                    <Txt size={12} color={C.muted}>Remember your PIN. You need your name and PIN to get back in on another device. No email needed.</Txt>
                   </>
                 )}
               </>
@@ -227,7 +227,7 @@ export function Welcome() {
 
       <View style={{ paddingHorizontal: 20, gap: 6, maxWidth: 520, width: '100%', alignSelf: 'center' }}>
         {step === 0 && <Btn title="Get started" onPress={() => setStep(1)} />}
-        {step === 1 && <Btn title="Next" disabled={name.trim().length < 2 || !initial} onPress={() => setStep(2)} />}
+        {step === 1 && <Btn title="Next" disabled={name.trim().length < 2 || last.trim().length < 2} onPress={() => setStep(2)} />}
         {step === 2 && <Btn title="Next" onPress={() => setStep(3)} />}
         {step === 3 && <Btn title="Next" disabled={liked.length < 3} onPress={() => setStep(4)} />}
         {step === 4 && choice && <Btn title="Join my class" busy={busy} disabled={!code.trim() || pin.length < 4} onPress={join} />}

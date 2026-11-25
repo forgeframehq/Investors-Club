@@ -59,6 +59,9 @@ const MIGRATIONS = [
   ['ALTER TABLE classes ADD COLUMN paused INTEGER NOT NULL DEFAULT 0', 'ALTER TABLE classes ADD COLUMN hours_only INTEGER NOT NULL DEFAULT 0'],
   // The reason a student picked in "Check before you buy". Empty when the check was skipped, and for sells.
   [`ALTER TABLE trades ADD COLUMN why TEXT NOT NULL DEFAULT ''`, `ALTER TABLE orders ADD COLUMN why TEXT NOT NULL DEFAULT ''`],
+  // The student's full name. Only their teacher is ever sent it: classmates and leaderboards get `name` (first
+  // name and last initial). Empty for students who joined before it was asked for.
+  [`ALTER TABLE students ADD COLUMN full_name TEXT NOT NULL DEFAULT ''`],
 ];
 async function prepare(env: Env) {
   await env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql)));
@@ -415,7 +418,7 @@ async function teacherSession(env: Env, teacher: Pick<TeacherRow, 'id' | 'name' 
 /** Everyone in a class, richest first. `detail` adds holdings and recent trades for the teacher view. */
 async function standings(env: Env, cls: ClassRow, meId: string | null, detail: boolean) {
   const [students, holdings, counts, recent] = await env.DB.batch([
-    env.DB.prepare('SELECT id, name, cash, avatar, progress, seen FROM students WHERE class_code = ? AND removed = 0').bind(cls.code),
+    env.DB.prepare('SELECT id, name, full_name, cash, avatar, progress, seen FROM students WHERE class_code = ? AND removed = 0').bind(cls.code),
     env.DB.prepare('SELECT h.student_id, h.symbol, h.shares, h.cost FROM holdings h JOIN students s ON s.id = h.student_id WHERE s.class_code = ? AND s.removed = 0').bind(cls.code),
     env.DB.prepare(`SELECT t.student_id, COUNT(*) AS n, SUM(CASE WHEN t.side = 'buy' THEN 1 ELSE 0 END) AS buys, SUM(CASE WHEN t.side = 'buy' AND t.why != '' THEN 1 ELSE 0 END) AS checked FROM trades t JOIN students s ON s.id = t.student_id WHERE s.class_code = ? GROUP BY t.student_id`).bind(cls.code),
     env.DB.prepare('SELECT t.student_id, t.id, t.symbol, t.side, t.shares, t.price, t.at, t.why FROM trades t JOIN students s ON s.id = t.student_id WHERE s.class_code = ? ORDER BY t.at DESC, t.rowid DESC LIMIT ?').bind(cls.code, detail ? 400 : 0),
@@ -423,7 +426,7 @@ async function standings(env: Env, cls: ClassRow, meId: string | null, detail: b
   const held = holdings.results as unknown as (Holding & { student_id: string })[];
   const quotes = await getQuotes(env, [...new Set(held.map((h) => h.symbol))]);
   const count = new Map((counts.results as unknown as { student_id: string; n: number; buys: number; checked: number }[]).map((r) => [r.student_id, r]));
-  const list = (students.results as unknown as { id: string; name: string; cash: number; avatar: string; progress: string; seen: string }[]).map((s) => {
+  const list = (students.results as unknown as { id: string; name: string; full_name: string; cash: number; avatar: string; progress: string; seen: string }[]).map((s) => {
     const mine = held.filter((h) => h.student_id === s.id);
     const value = s.cash + mine.reduce((sum, h) => sum + (quotes[h.symbol] ? h.shares * quotes[h.symbol].price : h.cost), 0);
     return {
@@ -431,7 +434,7 @@ async function standings(env: Env, cls: ClassRow, meId: string | null, detail: b
       gainPct: Math.round(((value - cls.start_cash) / cls.start_cash) * 10000) / 100,
       trades: count.get(s.id)?.n ?? 0, companies: mine.length, me: s.id === meId || undefined,
       ...(detail ? {
-        progress: parseProgress(s.progress), seen: s.seen, buys: count.get(s.id)?.buys ?? 0, checked: count.get(s.id)?.checked ?? 0,
+        fullName: s.full_name, progress: parseProgress(s.progress), seen: s.seen, buys: count.get(s.id)?.buys ?? 0, checked: count.get(s.id)?.checked ?? 0,
         holdings: mine.map(({ symbol, shares, cost }) => ({ symbol, shares, cost })),
         recent: (recent.results as unknown as (Trade & { student_id: string })[]).filter((t) => t.student_id === s.id).slice(0, 10).map(({ student_id: _, ...t }) => t),
       } : {}),
@@ -503,6 +506,8 @@ async function route(req: Request, env: Env): Promise<Response> {
     const name = cleanName(body.name, 20);
     const pin = String(body.pin ?? '').trim();
     const avatar = cleanAvatar(body.avatar);
+    const typed = cleanName(body.fullName, 40);
+    const fullName = /^[\p{L} .'-]{3,}$/u.test(typed) ? typed : '';
     // A student who picked their class from the list sends its id too, and the code has to be that class's code.
     const picked = body.class ? await env.DB.prepare('SELECT * FROM classes WHERE pub = ?').bind(String(body.class)).first<ClassRow>() : null;
     if (picked && picked.code !== code) throw new Problem(403, `That is not the code for ${picked.name}. Check it with your teacher.`);
@@ -520,11 +525,12 @@ async function route(req: Request, env: Env): Promise<Response> {
         await env.DB.prepare('UPDATE students SET fails = fails + 1 WHERE id = ?').bind(student.id).run();
         throw new Problem(403, 'That name is already in this class and the PIN does not match. If it is someone else, add your last initial.');
       } else if (student.fails) await env.DB.prepare('UPDATE students SET fails = 0 WHERE id = ?').bind(student.id).run();
+      if (fullName) await env.DB.prepare('UPDATE students SET full_name = ? WHERE id = ?').bind(fullName, student.id).run();
     } else {
       const size = await env.DB.prepare('SELECT COUNT(*) AS n FROM students WHERE class_code = ? AND removed = 0').bind(code).first<{ n: number }>();
       if ((size?.n ?? 0) >= MAX_CLASS) throw new Problem(403, 'This class is full.');
       student = { id: random(16), class_code: code, name, cash: cls.start_cash, stamp: '', pin_hash: hash, fails: 0, removed: 0, avatar };
-      await env.DB.prepare('INSERT INTO students (id, class_code, name, name_key, pin_hash, cash, avatar, created_at) VALUES (?,?,?,?,?,?,?,?)').bind(student.id, code, name, nameKey(name), hash, cls.start_cash, avatar, now()).run();
+      await env.DB.prepare('INSERT INTO students (id, class_code, name, name_key, pin_hash, cash, avatar, created_at, full_name) VALUES (?,?,?,?,?,?,?,?,?)').bind(student.id, code, name, nameKey(name), hash, cls.start_cash, avatar, now(), fullName).run();
     }
     const token = random(32);
     await env.DB.prepare('INSERT INTO sessions (token_hash, student_id, created_at) VALUES (?,?,?)').bind(await sha(token), student.id, now()).run();

@@ -115,8 +115,8 @@ export default function TeacherClass() {
   };
   /** Saves the students table as a spreadsheet file. Browser only. */
   const download = () => {
-    const head = ['Rank', 'Student', 'Value', 'Change %', 'Cash', 'Stocks', 'Trades', 'Level', 'Lessons passed', 'Words read', 'Flashcards known', 'Badges', 'Learning streak', 'Buys', 'Buys checked first', 'Last active'];
-    const lines = all.map((s) => [rank.get(s.id) ?? '', s.name, s.value.toFixed(2), s.gainPct.toFixed(2), s.cash.toFixed(2), s.companies, s.trades, s.progress?.level ?? '', s.progress?.lessons ?? '', s.progress?.words ?? '', s.progress?.cards ?? '', s.progress?.badges ?? '', s.progress?.streak ?? '', s.buys ?? 0, s.checked ?? 0, s.seen]);
+    const head = ['Rank', 'Student', 'Full name', 'Value', 'Change %', 'Cash', 'Stocks', 'Trades', 'Level', 'Lessons passed', 'Words read', 'Flashcards known', 'Badges', 'Learning streak', 'Buys', 'Buys checked first', 'Last active'];
+    const lines = all.map((s) => [rank.get(s.id) ?? '', s.name, s.fullName ?? '', s.value.toFixed(2), s.gainPct.toFixed(2), s.cash.toFixed(2), s.companies, s.trades, s.progress?.level ?? '', s.progress?.lessons ?? '', s.progress?.words ?? '', s.progress?.cards ?? '', s.progress?.badges ?? '', s.progress?.streak ?? '', s.buys ?? 0, s.checked ?? 0, s.seen]);
     const text = [head, ...lines].map((row) => row.map(csvCell).join(',')).join('\n');
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
@@ -292,7 +292,7 @@ export default function TeacherClass() {
                 <Pressable accessibilityRole="button" accessibilityLabel={`Student ${s.name}`} onPress={() => setOpen(open === s.id ? null : s.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <Avatar id={s.avatar} name={s.name} size={40} />
                   <View style={{ flex: 1 }}>
-                    <Txt size={16} bold lines={1}>{s.name}</Txt>
+                    <Txt size={16} bold lines={1}>{s.fullName || s.name}</Txt>
                     <Txt size={13} color={C.muted}>{wide ? `#${rank.get(s.id)}` : `#${rank.get(s.id)} · ${s.companies} ${s.companies === 1 ? 'stock' : 'stocks'} · ${s.trades} ${s.trades === 1 ? 'trade' : 'trades'}`}</Txt>
                   </View>
                   {wide ? (
