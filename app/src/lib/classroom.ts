@@ -25,7 +25,7 @@ const asTeacher = (path: string, body?: unknown) => {
 };
 function needServer(): string {
   const server = serverUrl();
-  if (!server) throw new Error('This app is not connected to a class server yet. Ask your teacher, or open Settings, then Market data.');
+  if (!server) throw new Error('No connection. Check the internet and try again.');
   return server;
 }
 
@@ -63,16 +63,16 @@ export async function syncPortfolio() {
 }
 
 /** Places a class trade. The server decides the price. */
-export async function tradeInClass(symbol: string, side: 'buy' | 'sell', shares: number) {
-  const j = await mine('/trade', { symbol, side, shares });
+export async function tradeInClass(symbol: string, side: 'buy' | 'sell', shares: number, why = '') {
+  const j = await mine('/trade', { symbol, side, shares, why });
   if (j.quote) db.quotes[symbol] = j.quote;
   setClassPortfolio(j.portfolio as ServerPortfolio);
   return j.trade as { price: number; shares: number };
 }
 
 /** Places a class order to be filled when the market opens. */
-export async function orderInClass(symbol: string, side: 'buy' | 'sell', amount: { shares?: number; dollars?: number }) {
-  const j = await mine('/order', { symbol, side, ...amount });
+export async function orderInClass(symbol: string, side: 'buy' | 'sell', amount: { shares?: number; dollars?: number }, why = '') {
+  const j = await mine('/order', { symbol, side, ...amount, why });
   setClassPortfolio(j.portfolio as ServerPortfolio);
 }
 export async function cancelClassOrder(id: string) {

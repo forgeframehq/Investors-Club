@@ -1,7 +1,8 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 
+import { SCHOOLS } from '@/data/schools';
 import { joinClass, leaderboard, leaveClass, schoolClasses, schools, syncPortfolio } from '@/lib/classroom';
 import { money } from '@/lib/format';
 import { serverUrl } from '@/lib/market';
@@ -16,9 +17,9 @@ interface ClassChoice { id: string; name: string; teacher: string }
 
 /** Choose your school and class, join with the code from your teacher, then see how everyone compares. Optional: the app works without it. */
 export default function ClassTab() {
-  const router = useRouter();
-  const { cls, teacher, settings } = useStore();
+  const { cls, settings } = useStore();
   const [school, setSchool] = useState('');
+  const [classes, setClasses] = useState<ClassChoice[] | null>(null);
   const [choice, setChoice] = useState<ClassChoice | null>(null);
   const [code, setCode] = useState('');
   const [name, setName] = useState(settings.name);
@@ -50,20 +51,22 @@ export default function ClassTab() {
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   const chooseSchool = async () => {
-    const names = (table ?? []).map((s) => s.name).sort();
+    const names = [...new Set([...SCHOOLS.map((s) => s.name), ...(table ?? []).map((s) => s.name)])].sort();
     const v = await pick('Which school do you go to?', names, school || null);
     if (!v || v === school) return;
     setSchool(v);
     setChoice(null);
-  };
-  const chooseClass = async () => {
+    setClasses(null);
+    setError('');
     try {
-      const list = await schoolClasses(school);
-      const v = await pick('Which class are you in?', list, null, (c) => `${c.name} (${c.teacher})`);
-      if (v) setChoice(v);
+      setClasses(await schoolClasses(v));
     } catch (e) {
       setError((e as Error).message);
     }
+  };
+  const chooseClass = async () => {
+    const v = await pick('Which class are you in?', classes ?? [], choice, (c) => `${c.name} (${c.teacher})`);
+    if (v) setChoice(v);
   };
   const join = async () => {
     setBusy(true);
@@ -99,31 +102,23 @@ export default function ClassTab() {
                 <Icon name="trophy-outline" color={C.accent} />
                 <Txt size={18} bold>Join your class</Txt>
               </Row>
-              <Txt size={15} color={C.muted}>Everyone starts with the same pretend money. The leaderboard shows whose portfolio has grown the most.</Txt>
+              <Txt size={15} color={C.muted}>Everyone starts with the same practice money. The leaderboard shows whose portfolio has grown the most.</Txt>
               {!serverUrl() ? (
-                <>
-                  <Txt size={15}>This app is not connected to a class server yet. Your teacher will give you the address, or you can keep using the practice portfolio.</Txt>
-                  <Btn title="Set up the class server" kind="ghost" onPress={() => router.push('/market-data')} />
-                </>
+                <Txt size={15}>Classes need the internet. Check your connection and come back. Your practice portfolio still works.</Txt>
               ) : (
                 <>
-                  {table && table.length === 0 && <Txt size={15}>No school has a class here yet. Ask your teacher to make one, then come back.</Txt>}
-                  {table && table.length > 0 && (
-                    <>
-                      <Btn title={school || 'Choose your school'} kind="ghost" left icon="business-outline" onPress={chooseSchool} />
-                      <Btn title={choice ? `${choice.name} (${choice.teacher})` : 'Choose your class'} kind="ghost" left icon="people-outline" disabled={!school} onPress={chooseClass} />
-                    </>
-                  )}
+                  <Btn title={school || 'Choose your school'} kind="ghost" left icon="business-outline" onPress={chooseSchool} />
+                  {classes && classes.length === 0 && <Txt size={15}>{school} has no class here yet. Ask your teacher to make one, then come back. Your practice portfolio still works.</Txt>}
+                  {classes && classes.length > 0 && <Btn title={choice ? `${choice.name} (${choice.teacher})` : 'Choose your class'} kind="ghost" left icon="people-outline" onPress={chooseClass} />}
                   <Field accessibilityLabel="Class code" placeholder="Class code from your teacher" value={code} onChangeText={(t) => setCode(t.toUpperCase())} autoCapitalize="characters" autoCorrect={false} maxLength={6} style={{ backgroundColor: C.cardHi }} />
                   <Field accessibilityLabel="Your name" placeholder="First name and last initial, like Sam T" value={name} onChangeText={setName} maxLength={20} autoCorrect={false} style={{ backgroundColor: C.cardHi }} />
                   <Field accessibilityLabel="PIN" placeholder="Choose a PIN (4 digits)" value={pin} onChangeText={(t) => setPin(t.replace(/\D/g, ''))} keyboardType="number-pad" secureTextEntry maxLength={8} style={{ backgroundColor: C.cardHi }} />
                   {!!error && <Txt size={14} color={C.bad}>{error}</Txt>}
-                  <Btn title="Join class" busy={busy} disabled={!code.trim() || !name.trim() || pin.length < 4 || (!!table?.length && !choice)} onPress={join} />
+                  <Btn title="Join class" busy={busy} disabled={!choice || !code.trim() || !name.trim() || pin.length < 4} onPress={join} />
                   <Txt size={12} color={C.muted}>Remember your PIN. You need your name and PIN to get back in on another device. No email or surname needed.</Txt>
                 </>
               )}
             </Card>
-            <Btn title={teacher ? 'Open my classes (teacher)' : 'I am a teacher'} kind="text" onPress={() => router.push('/teacher')} />
           </>
         )}
 

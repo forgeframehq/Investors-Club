@@ -1,21 +1,23 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { term } from '@/data/glossary';
+import { lesson, METERS_LESSON } from '@/data/lessons';
 import { markerViews, type MarkerView } from '@/data/markers';
-import { fmtDayKey, fmtShares, dayKey, money, pct, signedMoney } from '@/lib/format';
-import { loadHistory, loadMarkers, refreshQuotes, source } from '@/lib/market';
+import { fmtClock, fmtDayKey, fmtShares, dayKey, money, pct, signedMoney } from '@/lib/format';
+import { loadHistory, loadIntraday, loadMarkers, refreshQuotes, source } from '@/lib/market';
+import { companyWord, crowdWord, rsi } from '@/lib/meters';
 import { dayChangePct, holdingOf, holdingValue, markTerm, portfolio, stock, toggleWatch, useStore } from '@/lib/store';
-import type { HistoryPoint } from '@/lib/types';
+import type { HistoryPoint, IntraPoint } from '@/lib/types';
 import { PriceChart } from '@/ui/chart';
 import { mission, watchBadges } from '@/ui/celebrate';
 import { Bar, Btn, C, Caption, Card, Chip, Delta, Empty, Icon, IconBtn, Page, Row, Stat, Tile, Txt } from '@/ui/kit';
 import { alertBox } from '@/ui/overlay';
 import { TradeSheet } from '@/ui/trade';
 
-const RANGES = { '1W': 5, '1M': 22, '3M': 66, '1Y': 400 } as const;
+const RANGES = { Today: 0, '1W': 5, '1M': 22, '3M': 66, '1Y': 400 } as const;
 type Range = keyof typeof RANGES;
 
 /** One stock: price, graph, markers to read before choosing, and the buy and sell buttons. */
@@ -23,12 +25,15 @@ export default function StockScreen() {
   const { symbol: raw } = useLocalSearchParams<{ symbol: string }>();
   const symbol = String(raw ?? '').toUpperCase();
   const insets = useSafeAreaInsets();
-  const { quotes, markers, watch, settings } = useStore();
+  const router = useRouter();
+  const { quotes, markers, watch, settings, learned } = useStore();
   const s = stock(symbol);
   const q = quotes[symbol];
   const p = portfolio();
   const held = holdingOf(p, symbol);
-  const [range, setRange] = useState<Range>('1M');
+  const [range, setRange] = useState<Range>('Today');
+  const [steps, setSteps] = useState<IntraPoint[] | null>(null);
+  const [stepsError, setStepsError] = useState('');
   const [points, setPoints] = useState<HistoryPoint[] | null>(null);
   const [graphError, setGraphError] = useState('');
   const [side, setSide] = useState<'buy' | 'sell' | null>(null);
@@ -38,6 +43,7 @@ export default function StockScreen() {
     refreshQuotes();
     loadMarkers(symbol);
     loadHistory(symbol).then((pts) => live && setPoints(pts)).catch((e: Error) => live && setGraphError(e.message));
+    loadIntraday(symbol).then((pts) => live && setSteps(pts)).catch((e: Error) => live && setStepsError(e.message));
     return () => { live = false; };
   }, [symbol]);
 
@@ -47,8 +53,17 @@ export default function StockScreen() {
   const series = points ? [...points] : [];
   if (q && series.length && series[series.length - 1].d < dayKey()) series.push({ d: dayKey(), c: q.price });
   else if (q && series.length) series[series.length - 1] = { ...series[series.length - 1], c: q.price };
-  const shown = series.slice(-RANGES[range]);
+  // "Today" is the latest trading day in 15-minute steps, ending on the live price.
+  const today = range === 'Today';
+  const shown = today
+    ? [...(steps ?? []).map((x) => ({ label: fmtClock(x.t), c: x.c })), ...(q && steps?.length && q.at > steps[steps.length - 1].t + 60_000 ? [{ label: fmtClock(q.at), c: q.price }] : [])]
+    : series.slice(-RANGES[range]).map((x) => ({ label: fmtDayKey(x.d), c: x.c }));
   const moved = shown.length > 1 ? ((shown[shown.length - 1].c - shown[0].c) / shown[0].c) * 100 : 0;
+  // The Company and Crowd meters unlock once "The shop and the queue" is passed.
+  const metersOn = (learned.lessons[METERS_LESSON] ?? 0) >= (lesson(METERS_LESSON)?.quiz.length ?? 99);
+  const pe = markers[symbol]?.pe;
+  const crowd = series.length ? rsi(series.map((x) => x.c)) : null;
+  const seeMath = () => crowd && alertBox('The math behind the Crowd meter', `It is called RSI. Over about the last 14 days:\n\nAverage rise on up days: ${money(crowd.rise)}\nAverage fall on down days: ${money(crowd.fall)}\n\nStrength = rise divided by fall = ${crowd.fall ? (crowd.rise / crowd.fall).toFixed(2) : 'very high'}\nRSI = 100 - 100 / (1 + strength) = ${crowd.value.toFixed(0)}\n\nAbove 70 means lots of buying lately. Below 30 means lots of selling. It measures the crowd, not the company, and it does not say what happens next.`);
   const views = markerViews(markers[symbol] ?? null, q);
 
   const explain = async (m: MarkerView) => {
@@ -83,30 +98,31 @@ export default function StockScreen() {
               <Txt size={13} color={C.muted} style={{ paddingBottom: 9 }}>today</Txt>
             </Row>
           ) : (
-            <Txt size={15} color={C.muted}>{source() === 'none' ? 'Set up market data in Settings to see the price.' : 'Getting the price...'}</Txt>
+            <Txt size={15} color={C.muted}>{source() === 'none' ? 'No connection, so there is no price yet.' : 'Getting the price...'}</Txt>
           )}
         </Card>
 
         <Card>
-          <Row gap={8}>
+          <Row gap={6} style={{ flexWrap: 'wrap' }}>
             {(Object.keys(RANGES) as Range[]).map((r) => <Chip key={r} title={r} selected={range === r} onPress={() => setRange(r)} />)}
             <View style={{ flex: 1 }} />
             {shown.length > 1 && <Delta value={moved} />}
           </Row>
           {shown.length > 1 ? (
-            <PriceChart values={shown.map((x) => x.c)} labels={shown.map((x) => fmtDayKey(x.d))} />
+            <PriceChart values={shown.map((x) => x.c)} labels={shown.map((x) => x.label)} />
           ) : (
             <View style={{ height: 120, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 }}>
-              <Txt size={14} color={C.muted} center>{graphError || 'Drawing the graph...'}</Txt>
+              <Txt size={14} color={C.muted} center>{today ? stepsError || (steps ? 'Today\'s graph fills in as the day goes on. Try 1W or 1M for now.' : 'Drawing the graph...') : graphError || 'Drawing the graph...'}</Txt>
             </View>
           )}
+          {today && shown.length > 1 && <Txt size={12} color={C.muted}>The latest trading day in 15-minute steps, Bermuda time.</Txt>}
         </Card>
 
         <View style={{ gap: 4, marginTop: 4 }}>
           <Txt size={18} bold>Markers</Txt>
           <Txt size={14} color={C.muted}>Read these before you choose. Tap one to learn what it means.</Txt>
         </View>
-        {views.length === 0 && <Card><Txt size={14} color={C.muted}>{source() === 'none' ? 'Markers appear once market data is set up.' : 'Getting the markers...'}</Txt></Card>}
+        {views.length === 0 && <Card><Txt size={14} color={C.muted}>{source() === 'none' ? 'Markers appear once the internet is back.' : 'Getting the markers...'}</Txt></Card>}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {views.map((m) => {
             const colour = m.tone === 'up' ? C.good : m.tone === 'down' ? C.bad : C.accent;
@@ -128,6 +144,35 @@ export default function StockScreen() {
           })}
         </View>
         {views.length > 0 && <Txt size={12} color={C.muted}>Markers describe a company. No single marker tells you to buy or sell.</Txt>}
+
+        <View style={{ gap: 4, marginTop: 4 }}>
+          <Txt size={18} bold>The shop and the queue</Txt>
+          <Txt size={14} color={C.muted}>{metersOn ? 'The company and the crowd, side by side.' : 'Two meters that unlock when you pass the last lesson.'}</Txt>
+        </View>
+        {!metersOn ? (
+          <Card>
+            <Row>
+              <Icon name="lock-closed-outline" color={C.muted} />
+              <Txt size={15} style={{ flex: 1 }}>Pass the lesson "The shop and the queue" to see the Company meter and the Crowd meter here.</Txt>
+            </Row>
+            <Btn title="Open the lesson" kind="ghost" onPress={() => router.push(`/lesson/${METERS_LESSON}`)} />
+          </Card>
+        ) : (
+          <Card style={{ gap: 14 }}>
+            <View style={{ gap: 6 }}>
+              <Row><Icon name="storefront-outline" size={18} color={C.accent} /><Caption>Company meter</Caption><View style={{ flex: 1 }} /><Txt size={13} color={C.muted}>{pe && pe > 0 ? `P/E ${pe.toFixed(1)}` : ''}</Txt></Row>
+              <Txt size={17} bold>{pe && pe > 0 ? companyWord(pe) : 'No reading'}</Txt>
+              {pe && pe > 0 ? <Bar value={pe / 60} height={8} /> : <Txt size={13} color={C.muted}>There is no P/E for a fund, or when a company made no profit this year.</Txt>}
+            </View>
+            <View style={{ gap: 6 }}>
+              <Row><Icon name="people-outline" size={18} color={C.accent} /><Caption>Crowd meter</Caption><View style={{ flex: 1 }} /><Txt size={13} color={C.muted}>{crowd ? `RSI ${crowd.value.toFixed(0)}` : ''}</Txt></Row>
+              <Txt size={17} bold>{crowd ? crowdWord(crowd.value) : 'No reading yet'}</Txt>
+              {crowd && <Bar value={crowd.value / 100} height={8} />}
+              {crowd && <Btn title="See the math" kind="text" height={34} style={{ alignSelf: 'flex-start', paddingHorizontal: 0 }} onPress={seeMath} />}
+            </View>
+            <Txt size={12} color={C.muted}>The meters describe. They never tell you to buy or sell.</Txt>
+          </Card>
+        )}
 
         {held && (
           <Card>

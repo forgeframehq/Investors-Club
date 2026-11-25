@@ -6,13 +6,17 @@ import { orderInClass, tradeInClass } from '@/lib/classroom';
 import { fmtShares, money, parseNum, trimNum } from '@/lib/format';
 import { freshQuote, isOpen, nextOpenText } from '@/lib/market';
 import { roundShares } from '@/lib/rules';
-import { holdingOf, inClass, orderSolo, portfolio, stock, tradeSolo, useStore } from '@/lib/store';
+import { db, holdingOf, inClass, orderSolo, portfolio, setSetting, stock, tradeSolo, useStore } from '@/lib/store';
 
 import { watchBadges } from './celebrate';
-import { Btn, C, Chip, Field, Icon, Row, Txt } from './kit';
+import { Coach, reasonLabel } from './coach';
+import { Btn, C, Chip, Field, Icon, PracticeTag, Row, Txt } from './kit';
 import { toast } from './overlay';
 
-/** Bottom sheet for buying or selling one stock. `side` null means closed. */
+/** How many buys must go through "Check before you buy" before it can be skipped. */
+const MUST_CHECK = 3;
+
+/** Bottom sheet for buying or selling one stock. `side` null means closed. A buy starts with the check. */
 export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'buy' | 'sell' | null; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const { quotes } = useStore();
@@ -20,9 +24,11 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [why, setWhy] = useState('');
 
   useEffect(() => {
-    if (side) { setText(''); setError(''); setUnit(side === 'buy' ? 'dollars' : 'shares'); }
+    if (side) { setText(''); setError(''); setWhy(''); setChecking(side === 'buy'); setUnit(side === 'buy' ? 'dollars' : 'shares'); }
   }, [side]);
 
   if (!side) return null;
@@ -35,6 +41,7 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
   const shares = sharesAt(price);
   const total = shares * price;
   const buying = side === 'buy';
+  const buysSoFar = p.trades.filter((t) => t.side === 'buy').length + (p.orders ?? []).filter((o) => o.side === 'buy').length;
   // Like a real broker: when the market is closed the order waits and is filled at the first price after it opens.
   const open = isOpen();
   const problem = !text.trim() ? '' : !(amount > 0) ? 'Enter a number.' : shares <= 0 ? 'That is too small to trade.' : buying && total > p.cash + 0.001 ? `You have ${money(p.cash)} in cash.` : !buying && shares > held + 1e-6 ? `You have ${fmtShares(held)}.` : '';
@@ -50,9 +57,9 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
     try {
       if (!open) {
         const amountOf = buying && unit === 'dollars' ? { dollars: Math.round(amount * 100) / 100 } : { shares };
-        if (inClass()) await orderInClass(symbol, side, amountOf);
+        if (inClass()) await orderInClass(symbol, side, amountOf, why);
         else {
-          const failed = orderSolo(symbol, side, amountOf);
+          const failed = orderSolo(symbol, side, amountOf, why);
           if (failed) throw new Error(failed);
         }
         onClose();
@@ -60,15 +67,16 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
         return;
       }
       let done: { shares: number; price: number };
-      if (inClass()) done = await tradeInClass(symbol, side, shares);
+      if (inClass()) done = await tradeInClass(symbol, side, shares, why);
       else {
         // Practice trades use the newest real price, fetched this second.
         const q = await freshQuote(symbol);
         const n = sharesAt(q.price);
-        const failed = tradeSolo(symbol, side, n, q.price);
+        const failed = tradeSolo(symbol, side, n, q.price, why);
         if (failed) throw new Error(failed);
         done = { shares: n, price: q.price };
       }
+      if (buying && !db.settings.triedBuy) setSetting('triedBuy', true);
       onClose();
       toast(`${buying ? 'Bought' : 'Sold'} ${fmtShares(done.shares)} of ${s.name} at ${money(done.price)}`);
       await celebrate();
@@ -85,7 +93,16 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
         <Pressable accessibilityLabel="Close" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.62)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: insets.bottom + 14, gap: 12 }}>
             <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: C.cardHi, alignSelf: 'center' }} />
+            {checking ? (
+              <>
+                <Coach symbol={symbol} onDone={(reason) => { setWhy(reason); setChecking(false); }} onSkip={buysSoFar >= MUST_CHECK ? () => setChecking(false) : undefined} />
+                <Btn title="Cancel" kind="plain" onPress={onClose} />
+              </>
+            ) : (
+            <>
             <Txt size={19} bold>{buying ? 'Buy' : 'Sell'} {s.name}</Txt>
+            <PracticeTag />
+            {!!why && <Txt size={13} color={C.accent}>Your reason: {reasonLabel(why)}</Txt>}
             <Txt size={14} color={C.muted}>
               {money(price)} a share · {buying ? `you have ${money(p.cash)} cash` : `you own ${fmtShares(held)}`}
             </Txt>
@@ -118,6 +135,8 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
             {!!(problem || error) && <Txt size={14} color={C.bad}>{problem || error}</Txt>}
             <Btn title={open ? (buying ? 'Confirm buy' : 'Confirm sell') : buying ? 'Place buy order' : 'Place sell order'} kind={buying ? 'primary' : 'ghost'} color={buying ? undefined : C.bad} busy={busy} disabled={!(shares > 0) || !!problem} onPress={go} />
             <Btn title="Cancel" kind="plain" onPress={onClose} />
+            </>
+            )}
           </Pressable>
         </Pressable>
       </KeyboardAvoidingView>

@@ -1,6 +1,6 @@
 # Investors Club
 
-A stock market game for schools in Bermuda: pretend money, real prices, lessons, flashcards, class leaderboards and
+A stock market game for schools in Bermuda: practice money (never call it "pretend"; the tag reads "Practice money, not real"), real prices, lessons, flashcards, class leaderboards and
 a teacher view. `README.md` says what the app does and how to deploy it. `docs/lessons.md` records what cost time
 before; add to it whenever something takes more than a few minutes to figure out.
 
@@ -41,7 +41,8 @@ cd ../tests && ./run-e2e.sh                                        # drives the 
 
 ## Conventions
 
-- **Two audiences, two places.** Students use the tabs. Teachers use the teacher area (`/teacher`,
+- **Two audiences, two places.** The student app has no teacher link and no setup screens (no keys, no server
+  address): everything comes from our server. Students use the tabs. Teachers use the teacher area (`/teacher`,
   `/teacher-class`), which has its own header (`ui/teacher-bar.tsx`) and never shows the student welcome steps.
 - **Local-first.** The app works with no account and no network, apart from prices. Classes are optional.
 - **Children use this.** No photos, no email addresses, no surnames: a student is a first name with a last

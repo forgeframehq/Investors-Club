@@ -2,25 +2,39 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { lesson } from '@/data/lessons';
-import { finishLesson } from '@/lib/store';
+import { lesson, LESSONS, METERS_LESSON, reviewLesson } from '@/data/lessons';
+import { finishLesson, learnedToday, streak, useStore } from '@/lib/store';
+import { Avatar } from '@/ui/avatar';
 import { mission, watchBadges } from '@/ui/celebrate';
 import { Bar, Btn, C, Card, Empty, Icon, Page, Row, Txt } from '@/ui/kit';
+import { toast } from '@/ui/overlay';
+import { Play } from '@/ui/play';
+import { Words } from '@/ui/words';
 
-/** A lesson: a few cards to read, then a quiz. */
+/** A lesson: a few cards (one idea each, some with something to tap), then a quiz. `review` is three questions from any lesson. */
 export default function LessonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  // The key starts the screen afresh when one lesson leads straight into the next.
+  return <LessonBody key={String(id)} id={String(id)} />;
+}
+
+function LessonBody({ id }: { id: string }) {
   const router = useRouter();
-  const l = lesson(String(id));
+  const { settings } = useStore();
+  const [l] = useState(() => (id === 'review' ? reviewLesson() : lesson(String(id))));
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   if (!l) return <Empty icon="help-circle-outline" title="Lesson not found" body="Go back and choose a lesson." />;
 
+  const review = l.id === 'review';
+  const number = LESSONS.findIndex((x) => x.id === l.id) + 1;
+  const following = review ? undefined : LESSONS[number];
   const total = l.cards.length + l.quiz.length;
   const done = step >= total;
   const card = step < l.cards.length ? l.cards[step] : null;
   const question = !card && !done ? l.quiz[step - l.cards.length] : null;
+  const passed = score === l.quiz.length;
 
   const next = async () => {
     const right = question && picked === question.answer ? 1 : 0;
@@ -30,7 +44,9 @@ export default function LessonScreen() {
     setStep(step + 1);
     if (step + 1 >= total) {
       const celebrate = watchBadges();
-      finishLesson(l.id, newScore);
+      const first = review ? learnedToday() : (finishLesson(l.id, newScore), false);
+      const days = streak();
+      if (review ? first : days > 0) toast(days > 1 ? `Learning streak: ${days} days in a row!` : 'You learned something today. Come back tomorrow to start a streak.');
       mission('lesson'); // before the badge boxes, so it counts even if the app is closed with one still open
       await celebrate();
     }
@@ -39,20 +55,25 @@ export default function LessonScreen() {
 
   return (
     <Page>
-      <Stack.Screen options={{ title: l.title }} />
+      <Stack.Screen options={{ title: review ? l.title : `Lesson ${number} of ${LESSONS.length}` }} />
       <Bar value={Math.min(step, total) / total} height={6} />
 
       {card && (
         <>
           <Card style={{ gap: 12, paddingVertical: 22 }}>
-            <Txt size={13} color={C.muted}>{step + 1} of {l.cards.length}</Txt>
+            <Row>
+              <Txt size={13} color={C.muted} style={{ flex: 1 }}>{l.title} · {step + 1} of {l.cards.length}</Txt>
+              {card.who?.map((w) => <Avatar key={w} id={w} size={44} />)}
+            </Row>
             <Txt size={22} bold>{card.title}</Txt>
-            <Txt size={17}>{card.body}</Txt>
+            <Words text={card.body} />
+            {card.play && <Play kind={card.play} />}
           </Card>
           <Row>
             {step > 0 && <Btn title="Back" kind="ghost" style={{ flex: 1 }} onPress={() => setStep(step - 1)} />}
             <Btn title={step === l.cards.length - 1 ? 'Start the quiz' : 'Next'} style={{ flex: 2 }} onPress={() => setStep(step + 1)} />
           </Row>
+          <Txt size={12} color={C.muted} center>Tap an underlined word to see what it means.</Txt>
         </>
       )}
 
@@ -90,13 +111,19 @@ export default function LessonScreen() {
         <>
           <Card style={{ alignItems: 'center', paddingVertical: 28 }}>
             <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: C.accentDim, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={score === l.quiz.length ? 'ribbon' : 'school'} size={34} color={C.accent} />
+              <Icon name={passed ? 'ribbon' : 'school'} size={34} color={C.accent} />
             </View>
             <Txt size={24} bold>You scored {score} of {l.quiz.length}</Txt>
-            <Txt size={15} color={C.muted} center>{score === l.quiz.length ? 'Full marks. This lesson is passed.' : 'Get every question right to pass the lesson. You can try as many times as you like.'}</Txt>
+            <Txt size={15} color={C.muted} center>
+              {review ? 'A quick review a day keeps your learning streak going.'
+                : passed ? (l.id === METERS_LESSON ? 'Full marks. Every stock now shows you a Company meter and a Crowd meter.' : 'Full marks. This lesson is passed.')
+                : 'Get every question right to pass the lesson. You can try as many times as you like.'}
+            </Txt>
           </Card>
-          {score < l.quiz.length && <Btn title="Try again" onPress={again} />}
-          <Btn title="Back to lessons" kind={score < l.quiz.length ? 'ghost' : 'primary'} onPress={() => router.back()} />
+          {!review && !passed && <Btn title="Try again" onPress={again} />}
+          {!review && passed && l.id === 'market' && !settings.triedBuy && <Btn title="Try your first buy" icon="cart-outline" onPress={() => router.replace('/first-buy')} />}
+          {!review && passed && following && <Btn title={`Next lesson: ${following.title}`} kind={l.id === 'market' && !settings.triedBuy ? 'ghost' : 'primary'} onPress={() => router.replace(`/lesson/${following.id}`)} />}
+          <Btn title="Back to lessons" kind={review || (passed && !following) ? 'primary' : 'ghost'} onPress={() => (router.canGoBack() ? router.back() : router.replace('/learn'))} />
         </>
       )}
     </Page>

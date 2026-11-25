@@ -92,3 +92,19 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
   files in `app/assets/art`; `data/art.ts` lists which number is which.
 - **The art has solid pastel backgrounds**, so it is always shown as a rounded tile (`ui/art.tsx`), and a faded
   tile means "not reached yet".
+
+## 2026-11-24 — Learning path, buy coach, 50 stocks, today's graph
+
+- **A saved class lost its school on reload.** `load()` rebuilt the class link field by field and left `school`
+  out, so "your school" vanished after a refresh. When a saved object gains a field, check `load()` copies it.
+- **50 stocks is the ceiling on the free price key.** A refresh costs one Finnhub request per stock and the limit
+  is 60 a minute. The timer job was cut to 3 markers and 2 logos a run, and student requests for markers accept
+  a copy up to three days old so they almost never reach Finnhub.
+- **Today's 15-minute graph is built from prices we already fetch**, stored in the `intraday` table. Twelve
+  Data only fills gaps (once an hour per stock, 500 a day at most), because its free plan is 800 requests a day.
+- **A new lesson on the same route needs a `key`.** Going from one lesson straight to the next reuses the screen,
+  so its state (step, score) carried over until the body was keyed by lesson id.
+- **A buy now starts with "Check before you buy".** Tests that buy must go through it (see `coach` in
+  `tests/e2e.js`); it can be skipped only after three buys.
+- **No countdowns for children.** The "Shop or queue?" game was planned with a 60-second timer and built without
+  one.

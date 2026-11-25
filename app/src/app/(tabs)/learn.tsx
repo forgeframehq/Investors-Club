@@ -5,14 +5,17 @@ import { TERMS } from '@/data/glossary';
 import { LESSONS } from '@/data/lessons';
 import { cardsKnown, level, useStore } from '@/lib/store';
 import { Emblem } from '@/ui/art';
-import { GuessCard, MissionsCard } from '@/ui/daily';
+import { GuessCard, MissionsCard, StreakCard } from '@/ui/daily';
 import { Bar, C, Card, Icon, Page, Row, TabHeader, TapCard, Txt, type IconName } from '@/ui/kit';
 
-/** Daily missions, the up-or-down game, lessons with quizzes, flashcards, and the glossary. Everything here works with no internet. */
+/** The learning path first, then the streak, missions, games, flashcards and the glossary. All but the real-chart game work with no internet. */
 export default function Learn() {
   const router = useRouter();
-  const { learned } = useStore();
+  const { learned, settings } = useStore();
   const lv = level();
+  const isPassed = (id: string, questions: number) => (learned.lessons[id] ?? -1) >= questions;
+  const passedCount = LESSONS.filter((l) => isPassed(l.id, l.quiz.length)).length;
+  const nextId = LESSONS.find((l) => !isPassed(l.id, l.quiz.length))?.id;
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <TabHeader title="Learn" />
@@ -24,26 +27,34 @@ export default function Learn() {
             <Txt size={14} color={C.muted}>{lv.points} pts</Txt>
           </Row>
           <Bar value={lv.progress} />
-          <Txt size={13} color={C.muted}>Earn points by reading words, knowing flashcards, passing quizzes and collecting badges.</Txt>
+          <Txt size={13} color={C.muted}>Earn points by passing lessons, reading words, knowing flashcards and checking stocks before you buy.</Txt>
           <Row gap={4}>
             <Txt size={14} bold color={C.accent}>See the progress ladder</Txt>
             <Icon name="chevron-forward" size={16} color={C.accent} />
           </Row>
         </TapCard>
 
-        <MissionsCard />
-        <GuessCard />
+        <StreakCard />
 
-        <Txt size={18} bold>Lessons</Txt>
-        {LESSONS.map((l) => {
+        <View style={{ gap: 6 }}>
+          <Row>
+            <Txt size={18} bold style={{ flex: 1 }}>Learning path</Txt>
+            <Txt size={14} color={C.muted}>{passedCount} of {LESSONS.length} lessons done</Txt>
+          </Row>
+          <Bar value={passedCount / LESSONS.length} height={6} />
+          <Txt size={13} color={C.muted}>Start at the top. Each lesson builds on the one before, but you can open any of them.</Txt>
+        </View>
+        {LESSONS.map((l, i) => {
           const score = learned.lessons[l.id];
           const passed = score !== undefined && score >= l.quiz.length;
+          const next = l.id === nextId;
           return (
-            <TapCard key={l.id} label={`Lesson ${l.title}`} onPress={() => router.push(`/lesson/${l.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: passed ? C.accentDim : C.cardHi, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={l.icon as IconName} color={passed ? C.accent : C.text} />
+            <TapCard key={l.id} label={`Lesson ${l.title}`} onPress={() => router.push(`/lesson/${l.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 2, borderColor: next ? C.accent : C.card }}>
+              <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: passed || next ? C.accentDim : C.cardHi, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={l.icon as IconName} color={passed || next ? C.accent : C.text} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
+                <Txt size={12} bold color={next ? C.accent : C.muted} style={{ letterSpacing: 0.5 }}>LESSON {i + 1}{next ? ' · UP NEXT' : ''}</Txt>
                 <Txt size={16} bold>{l.title}</Txt>
                 <Txt size={13} color={C.muted}>{score === undefined ? `${l.minutes} min · ${l.quiz.length} questions` : passed ? 'Passed with full marks' : `Best score ${score} of ${l.quiz.length}. Try again for full marks.`}</Txt>
               </View>
@@ -51,6 +62,30 @@ export default function Learn() {
             </TapCard>
           );
         })}
+
+        {!settings.triedBuy && (
+          <TapCard label="Try your first buy" onPress={() => router.push('/first-buy')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.cardHi, alignItems: 'center', justifyContent: 'center' }}><Icon name="cart-outline" /></View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Txt size={16} bold>Try your first buy</Txt>
+              <Txt size={13} color={C.muted}>A trial run, step by step. It does not touch your $10,000.</Txt>
+            </View>
+            <Icon name="chevron-forward" size={20} color={C.muted} />
+          </TapCard>
+        )}
+
+        <MissionsCard />
+
+        <Txt size={18} bold>Games</Txt>
+        <TapCard label="Play What happened next" onPress={() => router.push('/what-next')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.accentDim, alignItems: 'center', justifyContent: 'center' }}><Icon name="analytics-outline" color={C.accent} /></View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Txt size={16} bold>What happened next?</Txt>
+            <Txt size={13} color={C.muted}>See a real chart with the end hidden. Did the price go up or down?</Txt>
+          </View>
+          <Icon name="chevron-forward" size={20} color={C.muted} />
+        </TapCard>
+        <GuessCard />
 
         <Txt size={18} bold>Flashcards</Txt>
         <TapCard label="Play flashcards" onPress={() => router.push('/flashcards')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>

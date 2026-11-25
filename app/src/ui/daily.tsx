@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 
 import { money, pct } from '@/lib/format';
-import { guessStock, makeGuess, missionsDone, settleGuess, stock, streak, todaysMissions, useStore } from '@/lib/store';
+import { guessStock, learnedAlready, makeGuess, missionsDone, settleGuess, stock, streak, todaysMissions, useStore } from '@/lib/store';
 
 import { mission, watchBadges } from './celebrate';
 import { Btn, C, Card, Icon, Row, TapCard, Tile, Txt, type IconName } from './kit';
@@ -18,6 +18,27 @@ function Flame() {
   );
 }
 
+/**
+ * The learning streak: days in a row with a lesson, a round of flashcards or a quick review done. The quick
+ * review is three questions, so keeping the streak never takes more than a minute.
+ */
+export function StreakCard() {
+  const router = useRouter();
+  useStore();
+  const today = learnedAlready();
+  return (
+    <Card>
+      <Row>
+        <Icon name="flame-outline" color={C.accent} />
+        <Txt size={18} bold style={{ flex: 1 }}>Learning streak</Txt>
+        <Flame />
+      </Row>
+      <Txt size={14} color={C.muted}>{today ? 'Done for today. Come back tomorrow to keep it going.' : 'Finish a lesson, a round of flashcards or a quick review today to keep it going.'}</Txt>
+      <Btn title="Quick review: 3 questions" icon="flash-outline" kind={today ? 'ghost' : 'primary'} height={44} onPress={() => router.push('/lesson/review')} />
+    </Card>
+  );
+}
+
 /** Today's three missions, each a tap away. */
 export function MissionsCard() {
   const router = useRouter();
@@ -28,7 +49,7 @@ export function MissionsCard() {
       <Row>
         <Icon name="flag-outline" color={C.accent} />
         <Txt size={18} bold style={{ flex: 1 }}>Today's missions</Txt>
-        <Flame />
+        <Txt size={14} color={C.muted}>{done.length} of 3</Txt>
       </Row>
       {todaysMissions().map((m) => {
         const ok = done.includes(m.id);
@@ -40,7 +61,7 @@ export function MissionsCard() {
           </TapCard>
         );
       })}
-      <Txt size={13} color={C.muted}>{done.length === 3 ? 'All done. Come back tomorrow to keep your streak going.' : 'Do all three to keep your streak going. New missions every day.'}</Txt>
+      <Txt size={13} color={C.muted}>{done.length === 3 ? 'All done. New missions tomorrow.' : 'Do all three for 20 points. New missions every day.'}</Txt>
     </Card>
   );
 }

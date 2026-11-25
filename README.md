@@ -1,6 +1,6 @@
 # Investors Club
 
-A stock market game for schools in Bermuda. Students invest pretend money in 35 real companies at real prices,
+A stock market game for schools in Bermuda. Students invest practice money in 50 real companies at real prices,
 read each stock's markers before choosing, learn the vocabulary, and compete on a class leaderboard.
 
 - `app/` — the app (React Native + Expo). One codebase gives the Android app and the website.
@@ -17,7 +17,7 @@ twenty characters, never a photo), a reading level, and which portfolio to start
 Four tabs:
 
 - **Market** — the home screen: your portfolio value and today's change, shortcuts, the day's biggest rise and
-  fall, a scrolling ticker, then the 35 stocks with logo, price and a green or red change block. Tapping a stock
+  fall, a scrolling ticker, then the 50 stocks with logo, price and a green or red change block. Tapping a stock
   opens a peek under it (today's high, low and open, company size, and the past month as a graph) with a Trade
   button. Filter by group, search, sort.
 - **Portfolio** — total value, gain since the start, your mix by group, holdings, badges, investor level, trades.
@@ -37,7 +37,7 @@ marker shows the real number, a plain word ("Giant", "Calm", "Steady payout") an
 Buying and selling is in dollars or shares (fractions allowed, no fees). Badges and levels reward learning and
 spreading risk, never trading often.
 
-**Teachers** have their own area at `/teacher` (also Settings → For teachers), with its own header and no
+**Teachers** have their own area at `/teacher` (the student app has no link to it), with its own header and no
 student tabs. They make an account with their school, a sign-in name and a password, then create as many
 classes as they need. Each class has its own join code and starting cash. A class page shows a summary (how many
 have traded, the average change, the most held stocks) and every student with their holdings, recent trades, when
@@ -80,10 +80,16 @@ showing logos before charging schools, as with prices.
 Prices are real, so they need the internet. Everything else (lessons, glossary, your portfolio at the last prices
 seen) works offline. Trades always use a price fetched that second.
 
-1. **Class server** (for schools). Holds the data keys, keeps one shared copy of each price and refreshes it on a
-   timer, so a whole class uses about as much data as one person.
-2. **Your own keys** (to try the app on one phone). Settings → Market data. A free [Finnhub](https://finnhub.io)
-   key gives prices and markers; a free [Twelve Data](https://twelvedata.com) key gives the graphs.
+The Investors Club server is the only source. It holds the data keys ([Finnhub](https://finnhub.io) for prices
+and markers, [Twelve Data](https://twelvedata.com) for graphs), keeps one shared copy of each price and refreshes
+it on a timer, so a whole class uses about as much data as one person. The app has no setup screen and takes no
+keys; the teacher area shows whether prices are up to date.
+
+The "Today" graph shows the latest trading day in 15-minute steps. The server builds it from the prices it
+already fetches (free), and fills gaps from Twelve Data at most once an hour per stock.
+
+**Request budget:** Finnhub's free key allows 60 requests a minute and a price refresh costs one per stock, so
+keep the list at 50 stocks or fewer. The timer job adds at most 5 more a run (3 markers, 2 logos).
 
 **Before charging schools:** both free plans are for personal, non-commercial use. A paid product shown to
 students needs a data plan that allows display to users (Twelve Data calls this "external display"; ask Finnhub
@@ -110,7 +116,7 @@ the Actions tab. The newest build is always
      account, which stops strangers making classes on your server.
 3. The app is built to use `https://investors-club.forgeframehq.workers.dev` (see `.github/workflows/android.yml`;
    the repository variable `INVESTORS_CLUB_SERVER_URL` overrides it). The website needs nothing: it uses the
-   address it was loaded from. A different server can also be typed in under Settings → Market data.
+   address it was loaded from.
 
 ### How it stays inside the free data plans
 
@@ -126,7 +132,7 @@ data changes nothing. The trading rules are one file shared by app and server (`
 
 ## Code layout
 
-- `app/src/data/` — the 35 stocks, glossary, lessons, profile pictures, and how markers are worded.
+- `app/src/data/` — the 50 stocks, glossary, lessons, profile pictures, and how markers are worded.
 - `app/src/lib/store.ts` — everything saved on the device, portfolio maths, badges and levels.
 - `app/src/lib/market.ts` — picks the price source and caches what it fetches.
 - `app/src/lib/provider.ts`, `rules.ts` — shared with the server. Keep them free of React Native imports.
@@ -155,3 +161,15 @@ and Twelve Data calls, including real logos, are not covered by it. Check those 
 - Resetting a forgotten teacher password, and moving a class from one teacher to another.
 - A school-wide view for a head teacher across several teachers' classes.
 - A photo as a profile picture (deliberately left out: photos of children need a school's consent).
+
+## Learning path (added 2026-11-24)
+
+- Ten lessons in order, from "Money, companies and profit" to "The shop and the queue", told through one story
+  (Sunny's lemonade stand). Cards can hold something to tap (`ui/play.tsx`) and hard words that open the glossary
+  (`[word](term-id)` in `data/lessons.ts`). `{b1}` to `{b3}` are the three companies picked at sign-up.
+- Sign-up ends with a school drop-down (every Bermuda school), then the class and its code. The first lesson
+  opens straight after, and a trial buy (`/first-buy`) uses a spare $100 that never touches the portfolio.
+- "Check before you buy" (`ui/coach.tsx`) runs before a buy: required for the first three, optional after. The
+  reason picked is saved with the trade (`why`) and shown to the teacher with how often the check was done.
+- Passing the last lesson unlocks a Company meter (P/E) and a Crowd meter (RSI, `lib/meters.ts`) on every stock.
+- One learning streak: a lesson, a flashcard round or a three-question review (`/lesson/review`) counts for a day.

@@ -2,9 +2,8 @@ import { useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
 import { money } from '@/lib/format';
-import { source } from '@/lib/market';
 import { ACCENTS, DEFAULT_ACCENT } from '@/lib/theme';
-import { db, resetSolo, setSetting, START_CASH, startOver, useStore } from '@/lib/store';
+import { resetSolo, setSetting, START_CASH, startOver, useStore } from '@/lib/store';
 import { Avatar } from '@/ui/avatar';
 import { Btn, C, Card, Icon, LinkRow, Page, Row, TapCard, Txt } from '@/ui/kit';
 import { confirm, toast } from '@/ui/overlay';
@@ -13,10 +12,9 @@ export default function Settings() {
   const router = useRouter();
   const { settings } = useStore();
   const accent = settings.accent ?? DEFAULT_ACCENT;
-  const src = source();
 
   const reset = async () => {
-    if (!(await confirm('Start the practice portfolio again?', `Your practice stocks and trades are cleared and you get ${money(START_CASH, false)} of pretend money. Class portfolios and badges from learning are not affected.`, 'Start again', { danger: true }))) return;
+    if (!(await confirm('Start the practice portfolio again?', `Your practice stocks and trades are cleared and you get ${money(START_CASH, false)} of practice money. Class portfolios and badges from learning are not affected.`, 'Start again', { danger: true }))) return;
     resetSolo();
     toast('Practice portfolio reset');
   };
@@ -55,17 +53,15 @@ export default function Settings() {
         ))}
       </Row>
 
-      <Txt size={18} bold>Setup</Txt>
+      <Txt size={18} bold>Start again</Txt>
       <View>
-        <LinkRow icon="pulse-outline" title="Market data" value={src === 'server' ? 'Class server' : src === 'direct' ? 'Your own key' : 'Not set up'} onPress={() => router.push('/market-data')} />
-        <LinkRow icon="school-outline" title="For teachers" value={db.teacher?.name ?? ''} onPress={() => router.push('/teacher')} />
         <LinkRow icon="refresh-outline" title="Reset practice portfolio" onPress={reset} />
         <LinkRow icon="log-out-outline" title="Start over as a new student" onPress={fresh} />
       </View>
 
       <Card>
         <Txt size={15} bold>About Investors Club of Bermuda</Txt>
-        <Txt size={14} color={C.muted}>A stock market game for schools in Bermuda. All money here is pretend. Prices are real US market prices in US dollars and can be a few minutes behind. One Bermuda dollar is worth the same as one US dollar. Nothing in this app is advice to buy or sell real investments.</Txt>
+        <Txt size={14} color={C.muted}>A stock market game for schools in Bermuda. The money is practice money, not real. Prices are real US market prices in US dollars and can be a few minutes behind. One Bermuda dollar is worth the same as one US dollar. Nothing in this app is advice to buy or sell real investments.</Txt>
       </Card>
     </Page>
   );

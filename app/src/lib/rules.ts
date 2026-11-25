@@ -8,7 +8,7 @@ const STEP = 1e4; // shares are kept to 4 decimal places
 export const roundShares = (n: number) => Math.floor(n * STEP + 1e-6) / STEP;
 
 /** Works out the portfolio after a trade, or returns a sentence saying why it cannot happen. There are no fees. */
-export function applyTrade<P extends Pick<Portfolio, 'cash' | 'holdings' | 'trades'>>(p: P, symbol: string, side: 'buy' | 'sell', rawShares: number, price: number): P | string {
+export function applyTrade<P extends Pick<Portfolio, 'cash' | 'holdings' | 'trades'>>(p: P, symbol: string, side: 'buy' | 'sell', rawShares: number, price: number, why = ''): P | string {
   const shares = roundShares(rawShares);
   if (!(shares > 0)) return 'Enter how many shares.';
   if (!(price > 0)) return 'There is no price for this stock right now.';
@@ -27,7 +27,7 @@ export function applyTrade<P extends Pick<Portfolio, 'cash' | 'holdings' | 'trad
     if (left > 0) holdings.push({ symbol, shares: left, cost: cents(held.cost * (left / held.shares)) });
   }
   holdings.sort((a, b) => a.symbol.localeCompare(b.symbol));
-  const trade: Trade = { id: newId(), symbol, side, shares, price, at: isoNow() };
+  const trade: Trade = { id: newId(), symbol, side, shares, price, at: isoNow(), ...(side === 'buy' && why ? { why } : {}) };
   return { ...p, cash, holdings, trades: [trade, ...p.trades] };
 }
 
@@ -63,7 +63,7 @@ export function fillOrders<P extends Pick<Portfolio, 'cash' | 'holdings' | 'trad
     const price = priceOf(o.symbol);
     if (!price) { waiting.push(o); continue; }
     const shares = o.shares !== undefined ? o.shares : roundShares((o.dollars ?? 0) / price);
-    const done = applyTrade(next, o.symbol, o.side, shares, price);
+    const done = applyTrade(next, o.symbol, o.side, shares, price, o.why);
     if (typeof done === 'string') notes.push({ id: o.id, symbol: o.symbol, side: o.side, why: done, at: isoNow() });
     else { next = done; filled.push(done.trades[0]); }
   }

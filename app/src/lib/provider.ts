@@ -61,6 +61,22 @@ export async function twelveHistory(get: GetJson, key: string, symbol: string): 
   return points.reverse();
 }
 
+/**
+ * The most recent 15-minute steps (about one trading day), oldest first. `t` is when each step started.
+ * Costs one of the free plan's 800 requests a day, so the server only asks when it has no steps of its own.
+ */
+export async function twelveIntraday(get: GetJson, key: string, symbol: string): Promise<{ t: number; c: number }[]> {
+  const j = await get(`${TWELVE}/time_series?symbol=${encodeURIComponent(symbol)}&interval=15min&outputsize=30&timezone=UTC&apikey=${encodeURIComponent(key)}`);
+  if (j?.status === 'error') throw new Error(String(j.message || 'No graph data for this stock.'));
+  const out: { t: number; c: number }[] = [];
+  for (const v of Array.isArray(j?.values) ? j.values : []) {
+    const c = Number(v?.close);
+    const t = Date.parse(`${String(v?.datetime ?? '').replace(' ', 'T')}Z`);
+    if (Number.isFinite(t) && Number.isFinite(c) && c > 0) out.push({ t, c });
+  }
+  return out.reverse();
+}
+
 // Days the US stock markets (NYSE and Nasdaq) are shut, in New York dates. Update this list each year.
 const HOLIDAYS = new Set([
   '2026-11-26', '2026-12-25',
@@ -69,7 +85,7 @@ const HOLIDAYS = new Set([
 /** Days the markets shut early, at 1 pm New York time (2 pm in Bermuda). */
 const EARLY = new Set(['2026-11-27', '2026-12-24', '2027-11-26']);
 /** The date in New York as YYYY-MM-DD. */
-function newYorkDay(now: Date): string {
+export function newYorkDay(now: Date): string {
   try {
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
   } catch {

@@ -45,6 +45,15 @@ export function dayKey(ms = Date.now()): string {
   const d = new Date(ms);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+/** A time of day in Bermuda, like "10:30 AM", for the graph of today's prices. */
+export function fmtClock(ms: number): string {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: 'Atlantic/Bermuda', hour: 'numeric', minute: '2-digit' }).format(new Date(ms));
+  } catch {
+    const d = new Date(ms);
+    return `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
+  }
+}
 export function ago(ms: number): string {
   const mins = Math.max(0, Math.round((Date.now() - ms) / 60000));
   if (mins < 1) return 'just now';

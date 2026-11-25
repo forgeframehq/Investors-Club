@@ -61,7 +61,8 @@ export default function RootLayout() {
         <Stack.Screen name="lesson/[id]" options={{ title: 'Lesson' }} />
         <Stack.Screen name="glossary" options={{ title: 'Glossary' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-        <Stack.Screen name="market-data" options={{ title: 'Market data' }} />
+        <Stack.Screen name="first-buy" options={{ title: 'Try a buy' }} />
+        <Stack.Screen name="what-next" options={{ title: 'What happened next?' }} />
         <Stack.Screen name="flashcards" options={{ title: 'Flashcards' }} />
         <Stack.Screen name="profile" options={{ title: 'Your profile' }} />
         <Stack.Screen name="ladder" options={{ title: 'Progress ladder' }} />

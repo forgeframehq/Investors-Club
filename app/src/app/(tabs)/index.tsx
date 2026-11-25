@@ -6,14 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Polyline } from 'react-native-svg';
 
 import { SECTORS, STOCKS } from '@/data/stocks';
-import { ago, fmtDayKey, money, pct, signedMoney } from '@/lib/format';
-import { isOpen, loadHistory, loadMarkers, nextOpenText, refreshQuotes, source } from '@/lib/market';
+import { LESSONS } from '@/data/lessons';
+import { ago, fmtClock, fmtDayKey, money, pct, signedMoney } from '@/lib/format';
+import { isOpen, loadHistory, loadIntraday, loadMarkers, nextOpenText, probe, refreshQuotes, source } from '@/lib/market';
 import { dayChangePct, inClass, missionsDone, portfolio, stock, streak, toggleWatch, totalValue, useStore } from '@/lib/store';
-import type { HistoryPoint } from '@/lib/types';
 import { PriceChart } from '@/ui/chart';
 import { BermudaFlag } from '@/ui/flag';
 import { Avatar } from '@/ui/avatar';
-import { Btn, C, Card, Empty, Icon, IconBtn, Row, SearchField, TapCard, Tile, Txt, WIDE, type IconName } from '@/ui/kit';
+import { Btn, C, Card, Empty, Icon, IconBtn, PracticeTag, Row, SearchField, TapCard, Tile, Txt, WIDE, type IconName } from '@/ui/kit';
 import { pick } from '@/ui/overlay';
 import { Ticker } from '@/ui/ticker';
 
@@ -57,15 +57,23 @@ function Fact({ title, value, color = C.text, align = 'flex-start' }: { title: s
   );
 }
 
-/** What opens under a stock when it is tapped: buttons, today's numbers, and the past month as a graph. */
+/** What opens under a stock when it is tapped: buttons, today's numbers, and today's price in 15-minute steps. */
 function Peek({ symbol, onTrade }: { symbol: string; onTrade: () => void }) {
   const { quotes, markers, watch } = useStore();
-  const [points, setPoints] = useState<HistoryPoint[] | null>(null);
+  const [points, setPoints] = useState<{ label: string; c: number }[] | null>(null);
+  const [title, setTitle] = useState('');
   const [error, setError] = useState('');
   useEffect(() => {
     let live = true;
     loadMarkers(symbol);
-    loadHistory(symbol).then((pts) => live && setPoints(pts.slice(-22))).catch((e: Error) => live && setError(e.message));
+    // Today in 15-minute steps. If there are too few steps to draw (early in the day), the past month instead.
+    loadIntraday(symbol)
+      .then((steps) => {
+        if (steps.length < 3) throw new Error('too few');
+        if (live) { setPoints(steps.map((x) => ({ label: fmtClock(x.t), c: x.c }))); setTitle('The latest trading day, in 15-minute steps'); }
+      })
+      .catch(() => loadHistory(symbol).then((pts) => { if (live) { setPoints(pts.slice(-22).map((x) => ({ label: fmtDayKey(x.d), c: x.c }))); setTitle('The past month'); } }))
+      .catch((e: Error) => live && setError(e.message));
     return () => { live = false; };
   }, [symbol]);
   const q = quotes[symbol];
@@ -88,8 +96,8 @@ function Peek({ symbol, onTrade }: { symbol: string; onTrade: () => void }) {
         <Fact title="Yesterday" value={dollars(q?.prev)} align="flex-end" />
       </Row>
       {points && points.length > 1
-        ? <PriceChart values={points.map((x) => x.c)} labels={points.map((x) => fmtDayKey(x.d))} height={150} />
-        : <Txt size={13} color={C.muted} center style={{ paddingVertical: 20 }}>{error || 'Drawing the past month...'}</Txt>}
+        ? <><Txt size={12} color={C.muted}>{title}</Txt><PriceChart values={points.map((x) => x.c)} labels={points.map((x) => x.label)} height={150} /></>
+        : <Txt size={13} color={C.muted} center style={{ paddingVertical: 20 }}>{error || 'Drawing the graph...'}</Txt>}
     </View>
   );
 }
@@ -114,7 +122,7 @@ function Shortcut({ icon, title, badge, tint, onPress }: { icon: IconName; title
 export default function Market() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { quotes, watch, net, settings, history } = useStore();
+  const { quotes, watch, net, settings, history, learned } = useStore();
   const [filter, setFilter] = useState('All');
   const [sort, setSort] = useState<Sort>('By group');
   const [query, setQuery] = useState('');
@@ -153,6 +161,11 @@ export default function Market() {
   const flat = Math.abs(today) < 0.005;
   const done = missionsDone().length;
   const days = streak();
+  // The next thing to learn: the first lesson not yet passed, with the trial buy straight after "What is the stock market?".
+  const passedLesson = (id: string) => (learned.lessons[id] ?? 0) >= (LESSONS.find((l) => l.id === id)?.quiz.length ?? 99);
+  const passedCount = LESSONS.filter((l) => passedLesson(l.id)).length;
+  const tryBuy = !settings.triedBuy && passedLesson('market');
+  const step = LESSONS.find((l) => !passedLesson(l.id));
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -168,7 +181,7 @@ export default function Market() {
               <Txt size={17} bold lines={1}>{settings.name ? `Hi, ${settings.name}` : 'Welcome'}</Txt>
               <Row gap={6}>
                 <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: src === 'none' || net.error ? C.bad : isOpen() ? C.good : C.muted }} />
-                <Txt size={12} color={C.muted} lines={1}>{src === 'none' ? 'Prices not set up' : net.error || `${isOpen() ? 'Market open' : 'Market closed'}${net.at ? ` · updated ${ago(net.at)}` : ''}`}</Txt>
+                <Txt size={12} color={C.muted} lines={1}>{src === 'none' ? 'No connection' : net.error || `${isOpen() ? 'Market open' : 'Market closed'}${net.at ? ` · updated ${ago(net.at)}` : ''}`}</Txt>
               </Row>
             </View>
           </TapCard>
@@ -186,10 +199,10 @@ export default function Market() {
           <Card>
             <Row>
               <Icon name="pulse-outline" color={C.accent} />
-              <Txt size={17} bold>Turn on live prices</Txt>
+              <Txt size={17} bold>Prices cannot load right now</Txt>
             </Row>
-            <Txt size={15} color={C.muted}>Investors Club uses real stock prices. Join your class, or add a free market data key, to see them.</Txt>
-            <Btn title="Set up market data" onPress={() => router.push('/market-data')} />
+            <Txt size={15} color={C.muted}>Investors Club uses real stock prices, and they need the internet. Lessons and flashcards still work.</Txt>
+            <Btn title="Try again" kind="ghost" onPress={() => probe().then(() => refreshQuotes(true))} />
           </Card>
         )}
 
@@ -204,6 +217,7 @@ export default function Market() {
           <View style={{ flex: 1, gap: 2 }}>
             <Txt size={14} color={C.muted}>{inClass() ? 'Class portfolio value' : 'Practice portfolio value'}</Txt>
             <Txt size={38} bold lines={1}>{money(total)}</Txt>
+            <PracticeTag />
             <Row gap={6}>
               <Txt size={14} color={C.muted}>Today</Txt>
               <Txt size={14} bold color={flat ? C.muted : today > 0 ? C.good : C.bad}>{signedMoney(today)} ({flat ? '0.00%' : pct(todayPct)})</Txt>
@@ -212,8 +226,22 @@ export default function Market() {
           <Btn title="My portfolio" height={46} style={{ paddingHorizontal: 18 }} onPress={() => router.push('/portfolio')} />
         </Row>
 
+        {(step || tryBuy) && (
+          <TapCard label={tryBuy ? 'Try your first buy' : 'Open your next lesson'} onPress={() => router.push(tryBuy ? '/first-buy' : `/lesson/${step!.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 2, borderColor: C.accent }}>
+            <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.accentDim, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={tryBuy ? 'cart-outline' : 'school-outline'} color={C.accent} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Txt size={12} bold color={C.accent} style={{ letterSpacing: 0.5 }}>{passedCount === 0 && !tryBuy ? 'START HERE' : 'YOUR NEXT STEP'}</Txt>
+              <Txt size={16} bold>{tryBuy ? 'Try your first buy' : step!.title}</Txt>
+              <Txt size={13} color={C.muted}>{tryBuy ? 'A trial run that does not touch your $10,000.' : `Lesson ${LESSONS.indexOf(step!) + 1} of ${LESSONS.length} · ${step!.minutes} min${days > 1 ? ` · ${days}-day streak` : ''}`}</Txt>
+            </View>
+            <Icon name="chevron-forward" size={20} color={C.accent} />
+          </TapCard>
+        )}
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingTop: 6 }}>
-          <Shortcut tint={0} icon="flag-outline" title="Missions" badge={done === 3 ? (days > 1 ? `${days} days` : 'Done') : `${done}/3`} onPress={() => router.push('/learn')} />
+          <Shortcut tint={0} icon="flag-outline" title="Missions" badge={done === 3 ? 'Done' : `${done}/3`} onPress={() => router.push('/learn')} />
           <Shortcut tint={1} icon="albums-outline" title="Flashcards" onPress={() => router.push('/flashcards')} />
           <Shortcut tint={2} icon="school-outline" title="Lessons" onPress={() => router.push('/learn')} />
           <Shortcut tint={3} icon="book-outline" title="Glossary" onPress={() => router.push('/glossary')} />
@@ -287,7 +315,7 @@ export default function Market() {
             );
           })}
         </View>
-        <Txt size={12} color={C.muted} center>Pretend money only. Prices are real and may be a few minutes behind.</Txt>
+        <Txt size={12} color={C.muted} center>Practice money, not real. Prices are real and may be a few minutes behind.</Txt>
       </ScrollView>
     </View>
   );

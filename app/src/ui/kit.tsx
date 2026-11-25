@@ -182,6 +182,16 @@ export function Delta({ value, size = 14, pill }: { value: number; size?: number
   );
 }
 
+/** A small label that sits beside any amount of money, so nobody mistakes it for the real thing. */
+export function PracticeTag() {
+  return (
+    <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.accentDim, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+      <Icon name="school-outline" size={13} color={C.accent} />
+      <Text style={{ fontFamily: F, color: C.accent, fontSize: 12, fontWeight: '600' }}>Practice money, not real</Text>
+    </View>
+  );
+}
+
 /** A thin progress bar from 0 to 1. */
 export function Bar({ value, color = C.accent, height = 8 }: { value: number; color?: string; height?: number }) {
   return (

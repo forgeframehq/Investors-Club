@@ -6,9 +6,9 @@
 // The database tables create themselves on first use, so deploying needs no database commands.
 import { SCHOOLS } from '../../app/src/data/schools';
 import { STOCKS } from '../../app/src/data/stocks';
-import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, nextOpenText, twelveHistory, type GetJson } from '../../app/src/lib/provider';
+import { finnhubLogo, finnhubMarkers, finnhubQuote, marketOpen, newYorkDay, nextOpenText, twelveHistory, twelveIntraday, type GetJson } from '../../app/src/lib/provider';
 import { applyTrade, checkOrder, fillOrders, roundShares } from '../../app/src/lib/rules';
-import type { HistoryPoint, Holding, Markers, Order, OrderNote, Progress, Quote, Trade } from '../../app/src/lib/types';
+import type { HistoryPoint, Holding, IntraPoint, Markers, Order, OrderNote, Progress, Quote, Trade } from '../../app/src/lib/types';
 
 interface Env {
   DB: D1Database;
@@ -24,6 +24,7 @@ const ALLOWED = new Set(SYMBOLS);
 const MAX_CLASS = 60;
 const MAX_CLASSES = 30; // per teacher
 const DAY = 24 * 3600_000;
+const STEP = 15 * 60_000; // one step of the "today" graph
 
 class Problem extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -47,6 +48,8 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS orders_student ON orders (student_id, status)`,
   `CREATE TABLE IF NOT EXISTS quotes (symbol TEXT PRIMARY KEY, price REAL NOT NULL, prev REAL NOT NULL, at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)`,
+  // Today's prices in 15-minute steps: `t` is when the step started, `price` the last price seen in it.
+  `CREATE TABLE IF NOT EXISTS intraday (symbol TEXT NOT NULL, t INTEGER NOT NULL, price REAL NOT NULL, PRIMARY KEY (symbol, t))`,
 ];
 // Columns added after the server first went live. Each is added once; the cache row remembers how far we got,
 // so a warm server pays one small read and a database that already has them is left alone.
@@ -54,6 +57,8 @@ const MIGRATIONS = [
   ['ALTER TABLE quotes ADD COLUMN hi REAL', 'ALTER TABLE quotes ADD COLUMN lo REAL', 'ALTER TABLE quotes ADD COLUMN open REAL'],
   // Class rules a teacher can set: stop all trading for now, or allow it only while the market is open.
   ['ALTER TABLE classes ADD COLUMN paused INTEGER NOT NULL DEFAULT 0', 'ALTER TABLE classes ADD COLUMN hours_only INTEGER NOT NULL DEFAULT 0'],
+  // The reason a student picked in "Check before you buy". Empty when the check was skipped, and for sells.
+  [`ALTER TABLE trades ADD COLUMN why TEXT NOT NULL DEFAULT ''`, `ALTER TABLE orders ADD COLUMN why TEXT NOT NULL DEFAULT ''`],
 ];
 async function prepare(env: Env) {
   await env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql)));
@@ -114,6 +119,11 @@ function mockHistory(symbol: string): HistoryPoint[] {
   }
   return points;
 }
+function mockIntraday(symbol: string): IntraPoint[] {
+  const q = mockQuote(symbol);
+  const start = Math.floor(Date.now() / STEP) * STEP - 25 * STEP;
+  return Array.from({ length: 26 }, (_, i) => ({ t: start + i * STEP, c: i === 25 ? q.price : Math.round((q.prev + ((q.price - q.prev) * i) / 25 + (seed(symbol + 'i' + i) - 0.5) * q.prev * 0.01) * 100) / 100 }));
+}
 const mockMarkers = (symbol: string): Markers => {
   const q = mockQuote(symbol);
   return { cap: Math.round(2000 + seed(symbol + 'c') * 900000), pe: Math.round(8 + seed(symbol + 'p') * 40), div: Math.round(seed(symbol + 'd') * 30) / 10, beta: Math.round((0.5 + seed(symbol + 'b') * 1.3) * 100) / 100, hi: Math.round(q.price * 1.2 * 100) / 100, lo: Math.round(q.price * 0.7 * 100) / 100, yr: Math.round((seed(symbol + 'y') - 0.35) * 60), growth: Math.round((seed(symbol + 'g') - 0.3) * 30), at: Date.now() };
@@ -160,9 +170,67 @@ async function getQuotes(env: Env, symbols: string[], opts: { single?: boolean }
         await env.DB.prepare(`INSERT INTO quotes (symbol, price, prev, at, hi, lo, open) VALUES ${part.map(() => '(?,?,?,?,?,?,?)').join(',')} ON CONFLICT(symbol) DO UPDATE SET price = excluded.price, prev = excluded.prev, at = excluded.at, hi = excluded.hi, lo = excluded.lo, open = excluded.open`)
           .bind(...part.flatMap(([s, q]) => [s, q.price, q.prev, q.at, q.hi ?? null, q.lo ?? null, q.open ?? null])).run();
       }
+      await sample(env, got);
     }
   }
   return Object.fromEntries(want.flatMap((s) => (have.has(s) ? [[s, have.get(s)!]] : [])));
+}
+
+let sampledAt = 0;
+/**
+ * Notes the prices we just fetched as steps of today's graph. Free: it reuses prices we already have. Written
+ * every few minutes at most, and only while the market is open, so each step ends on its last price.
+ */
+async function sample(env: Env, got: (readonly [string, Quote])[]) {
+  if (got.length < 2 || !marketOpen() || Date.now() - sampledAt < 4 * 60_000) return; // one stock is a trade, not a refresh
+  sampledAt = Date.now();
+  const t = Math.floor(Date.now() / STEP) * STEP;
+  for (let i = 0; i < got.length; i += 30) {
+    const part = got.slice(i, i + 30);
+    await env.DB.prepare(`INSERT INTO intraday (symbol, t, price) VALUES ${part.map(() => '(?,?,?)').join(',')} ON CONFLICT(symbol, t) DO UPDATE SET price = excluded.price`)
+      .bind(...part.flatMap(([s, q]) => [s, t, q.price])).run();
+  }
+}
+/** How many 15-minute steps a full trading day has, and how many of today's should exist by now. */
+const FULL_DAY = 26;
+/**
+ * The latest trading day in 15-minute steps. Our own steps are used when we have them. When they are missing
+ * (the server is new, or nobody had the app open), the gap is filled from the graph service, at most once an
+ * hour per stock and within a daily allowance, because that service's free plan is small.
+ */
+async function getIntraday(env: Env, symbol: string): Promise<IntraPoint[]> {
+  if (env.MOCK_MARKET) return mockIntraday(symbol);
+  const read = async () => (await env.DB.prepare('SELECT t, price AS c FROM intraday WHERE symbol = ? AND t > ? ORDER BY t').bind(symbol, Date.now() - 5 * DAY).all<IntraPoint>()).results;
+  const latest = (rows: IntraPoint[]) => {
+    const day = rows.length ? newYorkDay(new Date(rows[rows.length - 1].t)) : '';
+    return rows.filter((r) => newYorkDay(new Date(r.t)) === day);
+  };
+  let rows = await read();
+  const open = marketOpen();
+  const today = newYorkDay(new Date());
+  const mine = latest(rows);
+  // While the market is open we want today's steps so far; when it is closed, a whole day.
+  const opened = Date.now() - (mine[0]?.t ?? Date.now());
+  const thin = open ? (mine.length === 0 || newYorkDay(new Date(mine[0].t)) !== today || mine.length < opened / STEP - 3) : mine.length < FULL_DAY - 6;
+  if (thin && env.TWELVE_KEY) {
+    const tried = await env.DB.prepare('SELECT at FROM cache WHERE k = ?').bind(`ib:${symbol}`).first<{ at: number }>();
+    const budget = `tw:${new Date().toISOString().slice(0, 10)}`;
+    const used = (await env.DB.prepare('SELECT at FROM cache WHERE k = ?').bind(budget).first<{ at: number }>())?.at ?? 0;
+    if (Date.now() - (tried?.at ?? 0) > 3600_000 && used < 500) {
+      await env.DB.batch([
+        env.DB.prepare(`INSERT INTO cache (k, v, at) VALUES (?, '', ?) ON CONFLICT(k) DO UPDATE SET at = excluded.at`).bind(`ib:${symbol}`, Date.now()),
+        env.DB.prepare(`INSERT INTO cache (k, v, at) VALUES (?, '', 1) ON CONFLICT(k) DO UPDATE SET at = at + 1`).bind(budget),
+      ]);
+      const filled = await twelveIntraday(getJson, env.TWELVE_KEY, symbol).catch(() => []);
+      // Steps we noted ourselves are kept: they match the prices students traded at.
+      for (let i = 0; i < filled.length; i += 30) {
+        const part = filled.slice(i, i + 30);
+        await env.DB.prepare(`INSERT OR IGNORE INTO intraday (symbol, t, price) VALUES ${part.map(() => '(?,?,?)').join(',')}`).bind(...part.flatMap((p) => [symbol, p.t, p.c])).run();
+      }
+      if (filled.length) rows = await read();
+    }
+  }
+  return latest(rows);
 }
 
 async function cached<T>(env: Env, key: string, ttl: number, make: () => Promise<T>): Promise<T> {
@@ -177,10 +245,14 @@ async function cached<T>(env: Env, key: string, ttl: number, make: () => Promise
     throw e;
   }
 }
-function getMarkers(env: Env, symbol: string): Promise<Markers> {
+/**
+ * A student opening a stock gets the markers we have, up to three days old. The timer job refreshes them daily,
+ * so opening stocks almost never costs a request to the price service.
+ */
+function getMarkers(env: Env, symbol: string, ttl = 3 * DAY): Promise<Markers> {
   if (env.MOCK_MARKET) return Promise.resolve(mockMarkers(symbol));
   if (!env.FINNHUB_KEY) throw new Problem(503, 'Prices are not set up on the class server yet.');
-  return cached(env, `m:${symbol}`, DAY, () => finnhubMarkers(getJson, env.FINNHUB_KEY!, symbol));
+  return cached(env, `m:${symbol}`, ttl, () => finnhubMarkers(getJson, env.FINNHUB_KEY!, symbol));
 }
 function getHistory(env: Env, symbol: string): Promise<HistoryPoint[]> {
   if (env.MOCK_MARKET) return Promise.resolve(mockHistory(symbol));
@@ -211,10 +283,16 @@ async function warm(env: Env) {
   const at = new Map(rows.map((r) => [r.k, r.at]));
   const oldest = (prefix: string, ttl: number, count: number) =>
     SYMBOLS.filter((s) => Date.now() - (at.get(prefix + s) ?? 0) > ttl).sort((a, b) => (at.get(prefix + a) ?? 0) - (at.get(prefix + b) ?? 0)).slice(0, count);
-  if (env.FINNHUB_KEY) await Promise.allSettled(oldest('m:', DAY, 6).map((s) => getMarkers(env, s)));
+  // The free price key allows 60 requests a minute and a price refresh uses one per stock (50). So this job
+  // adds at most 5 more: 3 markers and 2 logos each run, which still covers every stock within a few hours.
+  if (env.FINNHUB_KEY) await Promise.allSettled(oldest('m:', DAY, 3).map((s) => getMarkers(env, s, DAY)));
   // An empty answer is kept too, so a stock with no logo (funds, mostly) is not asked for again every ten minutes.
-  if (env.FINNHUB_KEY) await Promise.allSettled(oldest('l:', 30 * DAY, 5).map((s) => cached(env, `l:${s}`, 30 * DAY, () => finnhubLogo(getJson, env.FINNHUB_KEY!, s))));
+  if (env.FINNHUB_KEY) await Promise.allSettled(oldest('l:', 30 * DAY, 2).map((s) => cached(env, `l:${s}`, 30 * DAY, () => finnhubLogo(getJson, env.FINNHUB_KEY!, s))));
   if (env.TWELVE_KEY) for (const s of oldest('h:', DAY / 2, 4)) await getHistory(env, s).catch(() => {});
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM intraday WHERE t < ?').bind(Date.now() - 6 * DAY),
+    env.DB.prepare(`DELETE FROM cache WHERE (k LIKE 'tw:%' OR k LIKE 'ib:%') AND k != ? AND (k LIKE 'tw:%' OR at < ?)`).bind(`tw:${new Date().toISOString().slice(0, 10)}`, Date.now() - DAY),
+  ]);
 }
 
 // ---------- classes ----------
@@ -230,6 +308,8 @@ const nameKey = (name: string) => name.toLowerCase();
 const pinHash = (code: string, name: string, pin: string) => sha(`${code}:${nameKey(name)}:${pin}`);
 /** Avatars are ids from the app's built-in list, never uploaded pictures. */
 const cleanAvatar = (v: unknown) => (typeof v === 'string' && /^[a-z0-9-]{1,24}$/.test(v) ? v : '');
+/** The reasons a student can pick in "Check before you buy". Anything else is dropped. */
+const cleanWhy = (v: unknown) => (typeof v === 'string' && ['know', 'numbers', 'spread', 'guess'].includes(v) ? v : '');
 /** Keeps only the counts the teacher view shows, each within a sensible range. */
 function cleanProgress(v: unknown): Progress | null {
   if (!v || typeof v !== 'object') return null;
@@ -241,11 +321,11 @@ const parseProgress = (text: string): Progress | null => { try { return text ? (
 async function loadPortfolio(env: Env, student: StudentRow, startCash: number) {
   const [holdings, trades, orders, notes] = await env.DB.batch([
     env.DB.prepare('SELECT symbol, shares, cost FROM holdings WHERE student_id = ? ORDER BY symbol').bind(student.id),
-    env.DB.prepare('SELECT id, symbol, side, shares, price, at FROM trades WHERE student_id = ? ORDER BY at DESC, rowid DESC LIMIT 100').bind(student.id),
-    env.DB.prepare(`SELECT id, symbol, side, shares, dollars, at FROM orders WHERE student_id = ? AND status = 'waiting' ORDER BY at, rowid`).bind(student.id),
+    env.DB.prepare('SELECT id, symbol, side, shares, price, at, why FROM trades WHERE student_id = ? ORDER BY at DESC, rowid DESC LIMIT 100').bind(student.id),
+    env.DB.prepare(`SELECT id, symbol, side, shares, dollars, at, why FROM orders WHERE student_id = ? AND status = 'waiting' ORDER BY at, rowid`).bind(student.id),
     env.DB.prepare(`SELECT id, symbol, side, note AS why, done_at AS at FROM orders WHERE student_id = ? AND status = 'dropped' ORDER BY done_at DESC LIMIT 5`).bind(student.id),
   ]);
-  const waiting = (orders.results as unknown as (Order & { shares: number | null; dollars: number | null })[]).map((o) => ({ id: o.id, symbol: o.symbol, side: o.side, at: o.at, ...(o.shares ? { shares: o.shares } : {}), ...(o.dollars ? { dollars: o.dollars } : {}) }) as Order);
+  const waiting = (orders.results as unknown as (Order & { shares: number | null; dollars: number | null })[]).map((o) => ({ id: o.id, symbol: o.symbol, side: o.side, at: o.at, ...(o.shares ? { shares: o.shares } : {}), ...(o.dollars ? { dollars: o.dollars } : {}), ...(o.why ? { why: o.why } : {}) }) as Order);
   return { start: startCash, cash: student.cash, holdings: holdings.results as unknown as Holding[], trades: trades.results as unknown as Trade[], orders: waiting, notes: notes.results as unknown as OrderNote[] };
 }
 type ServerPortfolio = Awaited<ReturnType<typeof loadPortfolio>>;
@@ -267,7 +347,7 @@ async function savePortfolio(env: Env, student: StudentRow, after: ServerPortfol
         ? env.DB.prepare(`INSERT INTO holdings (student_id, symbol, shares, cost) SELECT ?,?,?,? WHERE ${guard} ON CONFLICT(student_id, symbol) DO UPDATE SET shares = excluded.shares, cost = excluded.cost`).bind(student.id, symbol, holding.shares, holding.cost, ...bind)
         : env.DB.prepare(`DELETE FROM holdings WHERE student_id = ? AND symbol = ? AND ${guard}`).bind(student.id, symbol, ...bind);
     }),
-    ...newTrades.map((t) => env.DB.prepare(`INSERT INTO trades (id, student_id, symbol, side, shares, price, at) SELECT ?,?,?,?,?,?,? WHERE ${guard}`).bind(t.id, student.id, t.symbol, t.side, t.shares, t.price, t.at, ...bind)),
+    ...newTrades.map((t) => env.DB.prepare(`INSERT INTO trades (id, student_id, symbol, side, shares, price, at, why) SELECT ?,?,?,?,?,?,?,? WHERE ${guard}`).bind(t.id, student.id, t.symbol, t.side, t.shares, t.price, t.at, t.why ?? '', ...bind)),
     ...extra(guard, bind),
   ]);
   if (results[0].meta.changes !== 1) throw new Problem(409, 'That did not go through. Try again.');
@@ -337,21 +417,21 @@ async function standings(env: Env, cls: ClassRow, meId: string | null, detail: b
   const [students, holdings, counts, recent] = await env.DB.batch([
     env.DB.prepare('SELECT id, name, cash, avatar, progress, seen FROM students WHERE class_code = ? AND removed = 0').bind(cls.code),
     env.DB.prepare('SELECT h.student_id, h.symbol, h.shares, h.cost FROM holdings h JOIN students s ON s.id = h.student_id WHERE s.class_code = ? AND s.removed = 0').bind(cls.code),
-    env.DB.prepare('SELECT t.student_id, COUNT(*) AS n FROM trades t JOIN students s ON s.id = t.student_id WHERE s.class_code = ? GROUP BY t.student_id').bind(cls.code),
-    env.DB.prepare('SELECT t.student_id, t.id, t.symbol, t.side, t.shares, t.price, t.at FROM trades t JOIN students s ON s.id = t.student_id WHERE s.class_code = ? ORDER BY t.at DESC, t.rowid DESC LIMIT ?').bind(cls.code, detail ? 400 : 0),
+    env.DB.prepare(`SELECT t.student_id, COUNT(*) AS n, SUM(CASE WHEN t.side = 'buy' THEN 1 ELSE 0 END) AS buys, SUM(CASE WHEN t.side = 'buy' AND t.why != '' THEN 1 ELSE 0 END) AS checked FROM trades t JOIN students s ON s.id = t.student_id WHERE s.class_code = ? GROUP BY t.student_id`).bind(cls.code),
+    env.DB.prepare('SELECT t.student_id, t.id, t.symbol, t.side, t.shares, t.price, t.at, t.why FROM trades t JOIN students s ON s.id = t.student_id WHERE s.class_code = ? ORDER BY t.at DESC, t.rowid DESC LIMIT ?').bind(cls.code, detail ? 400 : 0),
   ]);
   const held = holdings.results as unknown as (Holding & { student_id: string })[];
   const quotes = await getQuotes(env, [...new Set(held.map((h) => h.symbol))]);
-  const count = new Map((counts.results as unknown as { student_id: string; n: number }[]).map((r) => [r.student_id, r.n]));
+  const count = new Map((counts.results as unknown as { student_id: string; n: number; buys: number; checked: number }[]).map((r) => [r.student_id, r]));
   const list = (students.results as unknown as { id: string; name: string; cash: number; avatar: string; progress: string; seen: string }[]).map((s) => {
     const mine = held.filter((h) => h.student_id === s.id);
     const value = s.cash + mine.reduce((sum, h) => sum + (quotes[h.symbol] ? h.shares * quotes[h.symbol].price : h.cost), 0);
     return {
       id: s.id, name: s.name, avatar: s.avatar, cash: s.cash, value: Math.round(value * 100) / 100,
       gainPct: Math.round(((value - cls.start_cash) / cls.start_cash) * 10000) / 100,
-      trades: count.get(s.id) ?? 0, companies: mine.length, me: s.id === meId || undefined,
+      trades: count.get(s.id)?.n ?? 0, companies: mine.length, me: s.id === meId || undefined,
       ...(detail ? {
-        progress: parseProgress(s.progress), seen: s.seen,
+        progress: parseProgress(s.progress), seen: s.seen, buys: count.get(s.id)?.buys ?? 0, checked: count.get(s.id)?.checked ?? 0,
         holdings: mine.map(({ symbol, shares, cost }) => ({ symbol, shares, cost })),
         recent: (recent.results as unknown as (Trade & { student_id: string })[]).filter((t) => t.student_id === s.id).slice(0, 10).map(({ student_id: _, ...t }) => t),
       } : {}),
@@ -387,6 +467,7 @@ async function route(req: Request, env: Env): Promise<Response> {
   if (path === '/markers') return json({ markers: await getMarkers(env, one()) });
   if (path === '/logos') return json({ logos: await getLogos(env) });
   if (path === '/history') return json({ points: await getHistory(env, one()) });
+  if (path === '/intraday') return json({ points: await getIntraday(env, one()) });
 
   // Schools that have at least one class here, with how each school's students are doing on average. Only totals
   // are public: no student or class is named.
@@ -471,7 +552,7 @@ async function route(req: Request, env: Env): Promise<Response> {
     const quote = (await getQuotes(env, [symbol], { single: true }))[symbol];
     if (!quote) throw new Problem(503, 'There is no price for this stock right now. Try again in a minute.');
     const before = await loadPortfolio(env, student, cls.start_cash);
-    const after = applyTrade(before, symbol, side, shares, quote.price);
+    const after = applyTrade(before, symbol, side, shares, quote.price, cleanWhy(body.why));
     if (typeof after === 'string') throw new Problem(400, after);
     await savePortfolio(env, student, after, [after.trades[0]]);
     return json({ trade: after.trades[0], quote, portfolio: { ...after, trades: after.trades.slice(0, 100) } });
@@ -491,7 +572,7 @@ async function route(req: Request, env: Env): Promise<Response> {
     const before = await loadPortfolio(env, student, cls.start_cash);
     const problem = checkOrder(before, { symbol, side, shares, dollars }, last);
     if (problem) throw new Problem(400, problem);
-    await env.DB.prepare('INSERT INTO orders (id, student_id, symbol, side, shares, dollars, at) VALUES (?,?,?,?,?,?,?)').bind(random(16), student.id, symbol, side, shares ?? null, dollars ?? null, now()).run();
+    await env.DB.prepare('INSERT INTO orders (id, student_id, symbol, side, shares, dollars, at, why) VALUES (?,?,?,?,?,?,?,?)').bind(random(16), student.id, symbol, side, shares ?? null, dollars ?? null, now(), side === 'buy' ? cleanWhy(body.why) : '').run();
     return json({ portfolio: await loadPortfolio(env, student, cls.start_cash) });
   }
   if (path === '/order/cancel' && post) {

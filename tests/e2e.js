@@ -27,6 +27,7 @@ function driver(p, errs) {
     text: () => p.evaluate(() => document.body.innerText),
     data: () => p.evaluate(() => JSON.parse(localStorage.getItem('ic.data') || '{}')),
     go: async (route) => { await p.goto(APP + route, { waitUntil: 'networkidle0' }); await sleep(900); },
+    eval: (fn) => p.evaluate(fn),
   };
 }
 
@@ -36,16 +37,40 @@ function driver(p, errs) {
   const p = await b.newPage();
   await p.setViewport({ width: 412, height: 915, deviceScaleFactor: 2 });
   const { shot, tap, type, text, data, go } = driver(p, errs);
+  // Goes through "Check before you buy": answers each card, then gives a reason. Returns how many cards there were.
+  const coach = async (d, reason = 'I know the company') => {
+    let cards = 0;
+    for (let i = 0; i < 8 && (await d.tap('Check answer 1')); i++) { cards++; await d.tap('Next'); }
+    return (await d.tap(`Reason: ${reason}`)) && (await d.tap('Choose how much')) ? cards : -1;
+  };
+  // The welcome steps up to choosing a school: name, picture, reading level, three companies.
+  const welcome = async (d, picture) => (await d.tap('Get started')) && (await d.type('Your first name', 'Sam')) && (await d.tap(picture)) && (await d.tap('Next')) && (await d.tap('Keep it simple')) && (await d.tap('Next')) && (await d.tap('Pick Roblox')) && (await d.tap('Pick Disney')) && (await d.tap('Pick Nike')) && (await d.tap('Next'));
   let t;
 
-  // ---- Welcome: name, picture, reading level, portfolio ----
+  // ---- Welcome: name, picture, reading level, three companies, school ----
   await go('/'); await shot('00-welcome');
   check((await text()).includes('Welcome to Investors Club'), 'a new student sees the welcome steps');
-  check(await tap('Get started') && await type('Your first name', 'Sam') && await tap('Picture Turtle'), 'choose a name and a picture'); await shot('00-welcome-profile');
-  check(await tap('Next') && await tap('Keep it simple') && await tap('Next'), 'choose a reading level'); await shot('00-welcome-portfolio');
-  check(await tap('Practice portfolio'), 'choose the practice portfolio'); await sleep(500);
+  check(!(await text()).includes('I am a teacher'), 'the student welcome has no teacher link');
+  check(await welcome({ tap, type }, 'Picture Turtle'), 'choose a name, a picture, a reading level and three companies'); await shot('00-welcome-school');
+  check((await text()).includes('Find your class') && await tap('Choose your school'), 'the last step asks for the school'); await sleep(500); await shot('00-welcome-schools');
+  check((await text()).includes('Warwick Academy') && (await text()).includes('CedarBridge Academy') && await tap('My school is not on the list'), 'every Bermuda school is in the drop-down');
+  check(await tap('Start with a practice portfolio'), 'a school with no class starts with the practice portfolio'); await sleep(700); await shot('00-first-lesson');
+  t = await text();
+  check(t.includes('Meet Sunny') && t.includes('Lesson 1 of 10'), 'the first lesson opens straight after signing up');
+  check(await tap('Next') && await tap('What does company mean?'), 'tap a hard word in a lesson'); await sleep(300); await shot('00-word');
+  check((await text()).includes('Public company'), 'the word is explained'); await tap('OK'); await sleep(200);
+  check(await tap('Next') && await tap('Sell a cup') && await tap('Sell a cup') && /2 cups sold/.test(await text()), 'a lesson card has something to tap'); await shot('00-lesson-play');
   let d = await data();
-  check(d.settings.onboarded && d.settings.name === 'Sam' && d.settings.avatar === 'turtle', 'the profile is saved and the welcome steps do not come back');
+  check(d.settings.onboarded && d.settings.name === 'Sam' && d.settings.avatar === 'turtle' && d.settings.brands.join() === 'RBLX,DIS,NKE' && d.watch.includes('RBLX'), 'the profile and the three companies are saved');
+
+  // ---- The trial buy: step by step, without touching the real portfolio ----
+  await go('/'); await shot('01-home-start');
+  check((await text()).includes('START HERE') && (await text()).includes('Practice money, not real'), 'home shows where to start and labels the money as practice money');
+  await go('/first-buy');
+  check(await tap('Choose Roblox') && await tap('Next') && await tap('$25') && await tap('Confirm trial buy'), 'go through the trial buy'); await shot('01-trial-buy');
+  d = await data();
+  check((await text()).includes('You bought') && d.solo.cash === 10000 && d.solo.trades.length === 0, 'the trial buy leaves the real $10,000 untouched');
+  check(await tap('Back to my lessons') && (await data()).settings.triedBuy === true, 'the trial buy is done once');
 
   // ---- Market ----
   await go('/'); await shot('01-market');
@@ -70,11 +95,15 @@ function driver(p, errs) {
   check(t.includes('Makes the iPhone') && /\$\d+\.\d\d/.test(t), 'stock page shows what the company does and its price');
   check(/COMPANY SIZE/i.test(t) && /JUMPINESS/i.test(t) && /DIVIDEND/i.test(t) && /52-WEEK RANGE/i.test(t), 'markers are shown before buying');
   check((await p.$$('svg path')).length >= 2, 'the price graph is drawn');
+  check(/15-minute steps/.test(t), 'the graph opens on today in 15-minute steps');
+  check(t.includes('Pass the lesson') && !/RSI \d/.test(t), 'the Company and Crowd meters are locked until the last lesson is passed');
   check(await tap('3M'), 'change the graph range');
   check(await tap('Marker Company size'), 'open a marker'); await shot('04-marker-explained');
   check((await text()).includes('What the whole company is worth'), 'the marker is explained in plain words'); await tap('OK');
   check(await tap('Add to watchlist'), 'star the stock');
-  check(await tap('Buy'), 'open the buy sheet'); await shot('05-buy-sheet');
+  check(await tap('Buy') && (await text()).includes('Check before you buy') && !(await text()).includes('Skip the check'), 'a buy starts with the check, which cannot be skipped at first'); await shot('05-coach');
+  check((await coach({ tap })) === 5, 'the check has five cards and then asks for a reason'); await shot('05-buy-sheet');
+  check((await text()).includes('Your reason: I know the company'), 'the buy sheet shows the reason');
   check(await type('Amount', '500'), 'type an amount'); await sleep(300); await shot('06-buy-amount');
   check(/You get/.test(await text()), 'the sheet says how many shares that buys');
   check(await tap('Confirm buy'), 'confirm'); await sleep(900); await shot('07-first-badge');
@@ -82,7 +111,8 @@ function driver(p, errs) {
   check(t.includes('Badge earned: First Trade'), 'first trade earns a badge'); await tap('OK'); await sleep(400);
   d = await data();
   check(d.solo.holdings.length === 1 && d.solo.holdings[0].symbol === 'AAPL' && Math.abs(d.solo.cash - 9500) < 1, 'practice portfolio saved: Apple held, about $500 spent');
-  check(await tap('Buy') && await type('Amount', '999999') && (await text()).includes('in cash'), 'cannot spend more than the cash'); await tap('Cancel');
+  check(d.solo.trades[0].why === 'know' && d.learned.checked.includes('AAPL'), 'the reason is saved with the trade');
+  check(await tap('Buy') && (await coach({ tap })) > 0 && await type('Amount', '999999') && (await text()).includes('in cash'), 'cannot spend more than the cash'); await tap('Cancel');
   check(await tap('Sell') && await tap('Half') && await tap('Confirm sell'), 'sell half'); await sleep(900);
   d = await data();
   check(d.solo.trades.length === 2 && d.solo.cash > 9700, 'selling adds the cash back');
@@ -92,7 +122,7 @@ function driver(p, errs) {
   await go('/'); await shot('07a-market-closed');
   check(/market is closed/i.test(await text()), 'the home screen says when the market is closed');
   await go('/stock/MSFT'); await sleep(600);
-  check(await tap('Buy') && /Place an order now|place an order now/i.test(await text()), 'when the market is closed the buy sheet explains that orders wait'); await shot('07b-order-sheet');
+  check(await tap('Buy') && (await coach({ tap }, 'The numbers look good')) > 0 && /Place an order now|place an order now/i.test(await text()), 'when the market is closed the buy sheet explains that orders wait'); await shot('07b-order-sheet');
   check(await type('Amount', '300') && await tap('Place buy order'), 'place an order for the open'); await sleep(700);
   d = await data();
   check(d.solo.orders.length === 1 && d.solo.orders[0].symbol === 'MSFT' && d.solo.orders[0].dollars === 300 && d.solo.trades.length === 2, 'the order waits; no trade happens yet');
@@ -102,6 +132,12 @@ function driver(p, errs) {
   await go('/'); await sleep(900);
   d = await data();
   check(d.solo.orders.length === 0 && d.solo.trades.length === 3 && d.solo.trades[0].symbol === 'MSFT', 'the order fills once the market opens');
+  check(d.solo.trades[0].why === 'numbers', 'the reason given with an order stays with the trade when it fills');
+  await go('/stock/KO'); await sleep(500);
+  check(await tap('Buy') && (await coach({ tap }, 'Just a guess')) > 0 && await type('Amount', '100') && await tap('Confirm buy'), 'a third buy, still with the check'); await sleep(900);
+  for (let i = 0; i < 3 && (await tap('OK')); i++) await sleep(300);
+  await go('/stock/DIS'); await sleep(500);
+  check(await tap('Buy') && (await text()).includes('Skip the check') && await tap('Skip the check') && (await text()).includes('Buy Disney'), 'after three buys the check can be skipped'); await tap('Cancel');
 
   // ---- Portfolio ----
   await go('/portfolio'); await shot('08-portfolio');
@@ -110,14 +146,41 @@ function driver(p, errs) {
 
   // ---- Learn ----
   await go('/learn'); await shot('09-learn');
-  check(await tap('Lesson What is a stock?'), 'open a lesson'); await sleep(500); await shot('10-lesson');
+  t = await text();
+  check(t.includes('Learning path') && /\d of 10 lessons done/.test(t) && t.includes('UP NEXT') && t.includes('Learning streak'), 'Learn shows the ten-lesson path, what is next, and the learning streak');
+  check(await tap('Lesson What is a share worth?'), 'open a lesson'); await sleep(500); await shot('10-lesson');
+  await tap('Next'); await tap('Next');
+  check((await text()).includes('Roblox'), 'lessons use the companies the student picked');
   for (let i = 0; i < 4; i++) await tap(i === 3 ? 'Start the quiz' : 'Next');
   check((await text()).includes('What do you own when you buy a share?'), 'quiz starts after the cards');
-  for (const a of [2, 1, 3]) { await tap(`Answer ${a}`); await sleep(200); if (a === 2) await shot('11-quiz'); await tap((await text()).includes('See my score') ? 'See my score' : 'Next question'); }
+  for (const a of [2, 1, 22, 3]) { await tap(`Answer ${a % 10}`); await sleep(200); if (a === 2) await shot('11-quiz'); await tap((await text()).includes('See my score') ? 'See my score' : 'Next question'); }
   await sleep(600); await shot('12-lesson-done');
   t = await text();
   check(t.includes('Badge earned: Quick Learner'), 'passing a quiz earns a badge'); await tap('OK'); await sleep(300);
-  check((await text()).includes('You scored 3 of 3'), 'full marks recorded');
+  t = await text();
+  check(t.includes('You scored 4 of 4') && t.includes('Next lesson: Why prices go up and down'), 'full marks recorded, and the next lesson is offered');
+  check((await data()).play.learnStreak === 1, 'finishing a lesson starts the learning streak');
+  await go('/lesson/review'); await sleep(400);
+  for (let i = 0; i < 3; i++) { await tap('Answer 1'); await sleep(200); await tap(i === 2 ? 'See my score' : 'Next question'); }
+  await sleep(400); await shot('12-review');
+  check(/You scored \d of 3/.test(await text()), 'the quick review asks three questions');
+  for (let i = 0; i < 3 && (await tap('OK')); i++) await sleep(300);
+
+  // ---- The shop and the queue: meters unlock after the last lesson, and a real-chart game ----
+  await go('/lesson/shop-queue'); await sleep(400);
+  for (let i = 0; i < 5; i++) await tap('Next');
+  check((await text()).includes('Shop or queue?') && await tap('The shop') && /about the company/.test(await text()), 'the shop-or-queue game is part of the last lesson'); await shot('12-shop-queue');
+  await tap('Next one'); await tap('Next'); await tap('Start the quiz');
+  for (const a of [1, 2, 2, 3]) { await tap(`Answer ${a}`); await sleep(200); await tap((await text()).includes('See my score') ? 'See my score' : 'Next question'); }
+  await sleep(500);
+  for (let i = 0; i < 3 && (await tap('OK')); i++) await sleep(300);
+  check((await text()).includes('Company meter and a Crowd meter'), 'passing the last lesson unlocks the meters');
+  await go('/stock/AAPL'); await sleep(900); await shot('12-meters');
+  t = await text();
+  check(/COMPANY METER/i.test(t) && /CROWD METER/i.test(t) && /RSI \d+/.test(t), 'every stock now shows the Company meter and the Crowd meter');
+  check(await tap('See the math') && /RSI = 100 - 100/.test(await text()), 'the Crowd meter shows its math'); await shot('12-math'); await tap('OK');
+  await go('/what-next'); await sleep(900);
+  check(await tap('It went up') && /Over the next month the price went (up|down)/.test(await text()), 'the real-chart game reveals what happened next'); await shot('12-what-next');
   await go('/glossary');
   check(await tap('Word Dividend') && (await text()).includes('pocket money'), 'glossary explains a word simply'); await shot('13-glossary');
   check((await data()).learned.terms.includes('dividend'), 'the word is marked as read');
@@ -133,7 +196,7 @@ function driver(p, errs) {
   // ---- Daily missions and the up-or-down game ----
   await go('/learn'); await shot('13-daily');
   t = await text();
-  check(t.includes("Today's missions") && t.includes('in a row') && t.includes('Up or down?'), 'Learn shows the daily missions and the up-or-down game');
+  check(t.includes("Today's missions") && t.includes('in a row') && t.includes('Up or down?'), 'Learn shows the streak, the daily missions and the up-or-down game');
   check(await tap('Up'), 'make an up-or-down guess'); await sleep(400);
   d = await data();
   check(d.play.guess && d.play.guess.pick === 'up' && (await text()).includes('Come back tomorrow'), 'the guess is saved until the price moves');
@@ -192,15 +255,16 @@ function driver(p, errs) {
   t = await s.text();
   check(t.includes('Teacher area') && t.includes('What you get as a teacher') && !t.includes('Welcome to Investors Club'), 'the teacher address opens the teacher area, without the student welcome steps');
   await s.go('/');
-  check(await s.tap('Get started') && await s.type('Your first name', 'Sam') && await s.tap('Picture Robot') && await s.tap('Next') && await s.tap('Next') && await s.tap('Class portfolio'), 'a new student chooses the class portfolio in the welcome steps'); await sleep(600); await s.shot('16-join');
-  check((await s.text()).includes('Join your class'), 'choosing the class portfolio opens the join form');
-  check(await s.tap('Choose your school') && await s.tap('Warwick Academy') && await s.tap('Choose your class') && await s.tap('P6 Blue (Ms Smith)'), 'student chooses their school and class'); await s.shot('16-join-chosen');
-  check(await s.type('Class code', code) && await s.type('Your name', 'Sam T') && await s.type('PIN', '1234') && await s.tap('Join class'), 'student joins with code, name and PIN'); await sleep(1200); await s.shot('17-leaderboard');
+  check(await welcome(s, 'Picture Robot'), 'a new student goes through the welcome steps'); await s.shot('16-join-school');
+  check(await s.tap('Choose your school') && await s.tap('Warwick Academy') && await s.tap('Choose your class') && await s.tap('P6 Blue (Ms Smith)'), 'student chooses their school and class from the drop-downs'); await s.shot('16-join-chosen');
+  check(await s.type('Class code', code) && await s.type('Your name', 'Sam T') && await s.type('PIN', '1234') && await s.tap('Join my class'), 'student joins with code, name and PIN'); await sleep(1500);
+  check((await s.text()).includes('Meet Sunny'), 'after joining, the first lesson opens');
+  await s.go('/class'); await sleep(900); await s.shot('17-leaderboard');
   t = await s.text();
   check(t.includes('P6 Blue') && t.includes('Sam T (you)') && t.includes('Alex R'), 'student sees the class leaderboard');
   check(t.includes('Bermuda schools') && t.includes('Warwick Academy (your school)'), 'student sees the table of schools');
   await s.go('/stock/NTB');
-  check(await s.tap('Buy') && await s.type('Amount', '2000') && await s.tap('Confirm buy'), 'student buys in the class portfolio'); await sleep(1200);
+  check(await s.tap('Buy') && (await coach(s, 'To spread my risk')) > 0 && await s.type('Amount', '2000') && await s.tap('Confirm buy'), 'student buys in the class portfolio, after the check'); await sleep(1200);
   await s.tap('OK'); await sleep(300); await s.tap('OK');
   await s.go('/portfolio'); await s.shot('18-class-portfolio');
   t = await s.text();
@@ -215,6 +279,7 @@ function driver(p, errs) {
   t = await text();
   check(t.includes('P6 Blue') && t.includes('2 students') && t.includes('class average'), 'the teacher sees the class with its size and average');
   check(t.includes('Teacher area') && t.includes('Warwick Academy') && t.includes('Links to share'), 'the teacher area has its own header and the links to share');
+  check(/Prices: up to date for 50 of 50 stocks/.test(t), 'the teacher area says whether prices are up to date');
   check(await tap('Class P6 Blue'), 'open the class'); await sleep(900); await shot('19-teacher-class');
   t = await text();
   check(t.includes('Class summary') && t.includes('Most held') && t.includes('Worth a word') && t.includes('2 students'), 'the class overview shows a summary, popular stocks and who needs a word');
@@ -224,6 +289,7 @@ function driver(p, errs) {
   check(await tap('Student Sam T'), 'open a student'); await shot('19-teacher-student');
   t = await text();
   check(/bought .* of NTB/.test(t) && t.includes('Learning') && t.includes('Butterfield Bank'), "teacher sees the student's holdings, trades and learning");
+  check(t.includes('reason: To spread my risk') && t.includes('Did the check on 1 of 1 buy'), 'teacher sees why the student bought and how often they checked first');
   check(await tap('Most learned') && await tap('Name'), 'sort the students');
   await p.setViewport({ width: 1366, height: 800, deviceScaleFactor: 1 }); await sleep(600); await shot('19-teacher-laptop');
   check((await text()).includes('LAST ACTIVE'), 'on a laptop the students are shown as a table');
@@ -237,6 +303,12 @@ function driver(p, errs) {
   const cls = await api(`/teacher/class?code=${code}`, null, teacherToken);
   const sam = cls.standings.find((x) => x.name === 'Sam T');
   check(sam && sam.holdings[0].symbol === 'NTB' && Math.abs(sam.cash - 8000) < 1, 'the class server holds the trade');
+  check(sam && sam.buys === 1 && sam.checked === 1 && sam.recent[0].why === 'spread', 'the class server keeps the reason for the buy');
+  const alex = cls.standings.find((x) => x.name === 'Alex R');
+  check(alex && alex.buys >= 2 && alex.checked === 0, 'buys made without the check are counted as unchecked');
+  const steps = await api('/intraday?symbol=AAPL');
+  check(steps.points && steps.points.length === 26 && steps.points[1].t - steps.points[0].t === 900000, 'the server gives today in 15-minute steps');
+  check(Object.keys((await api('/quotes')).quotes).length === 50, 'the server has prices for all 50 stocks');
   check(sam && sam.avatar === 'robot' && sam.progress && sam.progress.level >= 1 && !!sam.seen, "the class server knows the student's picture and learning");
   const bad = await api(`/teacher/class?code=${code}`, null, 'nope');
   check(!!bad.error, 'the teacher view needs a signed-in teacher');
@@ -253,9 +325,12 @@ function driver(p, errs) {
   check(await tap('Start over as a new student') && await tap('Start over'), 'start over from Settings'); await sleep(700);
   d = await data();
   check((await text()).includes('Welcome to Investors Club') && !d.settings.onboarded && d.solo.trades.length === 0 && !d.teacher, 'starting over clears this device and shows the welcome steps again');
-  await tap('Get started'); await type('Your first name', 'Sam'); await tap('Next'); await tap('Next'); await tap('Practice portfolio');
-  await go('/market-data'); await shot('21-market-data');
-  check((await text()).includes('Prices come from the class server'), 'Market data shows where prices come from');
+  await welcome({ tap, type }, 'Picture Turtle'); await tap('Practise on my own for now'); await sleep(500);
+  await go('/settings'); await shot('21-settings-clean');
+  t = await text();
+  check(!t.includes('Market data') && !t.includes('For teachers') && !/key/i.test(t), 'Settings has no setup screens or teacher link for students');
+  await go('/class');
+  check(!(await text()).includes('I am a teacher') && (await text()).includes('Choose your school'), 'the Class tab has no teacher link');
 
   const real = errs.filter((e) => !/Failed to load resource|favicon/.test(e));
   check(real.length === 0, 'no errors in the browser console' + (real.length ? ': ' + real.slice(0, 3).join(' | ') : ''));

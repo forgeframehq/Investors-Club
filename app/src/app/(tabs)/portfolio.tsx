@@ -79,7 +79,7 @@ export default function PortfolioTab() {
 
         {holdings.length === 0 ? (
           <Card>
-            <Empty icon="wallet-outline" title={`You have ${money(p.cash, false)} to invest`} body="It is pretend money, so this is the place to try things out. Pick a stock, read its markers, and buy your first shares." />
+            <Empty icon="wallet-outline" title={`You have ${money(p.cash, false)} to invest`} body="It is practice money, not real, so this is the place to try things out. Pick a stock, read its markers, and buy your first shares." />
             <Btn title="Go to the Market" onPress={() => router.push('/')} />
           </Card>
         ) : (

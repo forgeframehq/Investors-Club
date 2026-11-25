@@ -5,8 +5,9 @@ import { View } from 'react-native';
 
 import { createClass, teacherClasses, teacherSignIn, teacherSignOut, teacherSignUp } from '@/lib/classroom';
 import { SCHOOLS } from '@/data/schools';
-import { money } from '@/lib/format';
-import { serverUrl } from '@/lib/market';
+import { ago, money } from '@/lib/format';
+import { isOpen, refreshQuotes, serverUrl } from '@/lib/market';
+import { STOCKS } from '@/data/stocks';
 import { useStore } from '@/lib/store';
 import type { ClassSummary } from '@/lib/types';
 import { Btn, C, Card, Chip, Delta, Empty, Field, Icon, Page, Row, Stat, TapCard, Txt } from '@/ui/kit';
@@ -18,7 +19,7 @@ const CASH = [1000, 10000, 100000];
 /** Teacher sign-in, then every class the teacher runs. Tap a class to see its students. */
 export default function Teacher() {
   const router = useRouter();
-  const { teacher } = useStore();
+  const { teacher, net, quotes } = useStore();
   const [mode, setMode] = useState<'in' | 'new'>('in');
   const [name, setName] = useState('');
   const [school, setSchool] = useState('');
@@ -143,6 +144,13 @@ export default function Teacher() {
         </View>
         <Btn title="Sign out" kind="text" icon="log-out-outline" onPress={signOut} />
       </Row>
+      {/* The one place that says whether prices are flowing. Students never see setup details. */}
+      <TapCard bare label="Check prices now" onPress={() => refreshQuotes(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: net.error || !net.at ? C.bad : C.good }} />
+        <Txt size={13} color={C.muted} style={{ flex: 1 }}>
+          {net.error ? `Prices: ${net.error}` : net.at ? `Prices: up to date for ${Object.keys(quotes).filter((k) => STOCKS.some((s) => s.symbol === k)).length} of ${STOCKS.length} stocks, updated ${ago(net.at)}. Market ${isOpen() ? 'open' : 'closed'}. Tap to check again.` : 'Prices: checking...'}
+        </Txt>
+      </TapCard>
 
       {!!classes?.length && (
         <Card>

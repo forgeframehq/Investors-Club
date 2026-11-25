@@ -10,6 +10,7 @@ import { stock, useStore } from '@/lib/store';
 import type { StudentDetail, Trade } from '@/lib/types';
 import { Emblem } from '@/ui/art';
 import { Avatar } from '@/ui/avatar';
+import { reasonLabel } from '@/ui/coach';
 import { Btn, C, Card, Chip, Delta, Divider, Empty, Icon, Page, Row, Stat, Tile, Txt } from '@/ui/kit';
 import { confirm, menu, prompt, toast } from '@/ui/overlay';
 import { TeacherBar } from '@/ui/teacher-bar';
@@ -114,8 +115,8 @@ export default function TeacherClass() {
   };
   /** Saves the students table as a spreadsheet file. Browser only. */
   const download = () => {
-    const head = ['Rank', 'Student', 'Value', 'Change %', 'Cash', 'Stocks', 'Trades', 'Level', 'Lessons passed', 'Words read', 'Flashcards known', 'Badges', 'Mission streak', 'Last active'];
-    const lines = all.map((s) => [rank.get(s.id) ?? '', s.name, s.value.toFixed(2), s.gainPct.toFixed(2), s.cash.toFixed(2), s.companies, s.trades, s.progress?.level ?? '', s.progress?.lessons ?? '', s.progress?.words ?? '', s.progress?.cards ?? '', s.progress?.badges ?? '', s.progress?.streak ?? '', s.seen]);
+    const head = ['Rank', 'Student', 'Value', 'Change %', 'Cash', 'Stocks', 'Trades', 'Level', 'Lessons passed', 'Words read', 'Flashcards known', 'Badges', 'Learning streak', 'Buys', 'Buys checked first', 'Last active'];
+    const lines = all.map((s) => [rank.get(s.id) ?? '', s.name, s.value.toFixed(2), s.gainPct.toFixed(2), s.cash.toFixed(2), s.companies, s.trades, s.progress?.level ?? '', s.progress?.lessons ?? '', s.progress?.words ?? '', s.progress?.cards ?? '', s.progress?.badges ?? '', s.progress?.streak ?? '', s.buys ?? 0, s.checked ?? 0, s.seen]);
     const text = [head, ...lines].map((row) => row.map(csvCell).join(',')).join('\n');
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
@@ -156,8 +157,11 @@ export default function TeacherClass() {
 
       <Txt size={14} bold>Learning</Txt>
       {s.progress
-        ? <Row gap={8} style={{ alignItems: 'flex-start' }}><Emblem level={s.progress.level} size={34} /><Txt size={13} color={C.muted} style={{ flex: 1 }}>Level {s.progress.level} · {s.progress.lessons} {s.progress.lessons === 1 ? 'lesson' : 'lessons'} passed · {s.progress.words} words read · {s.progress.cards} flashcards known · {s.progress.badges} {s.progress.badges === 1 ? 'badge' : 'badges'} · {s.progress.streak ?? 0}-day mission streak</Txt></Row>
+        ? <Row gap={8} style={{ alignItems: 'flex-start' }}><Emblem level={s.progress.level} size={34} /><Txt size={13} color={C.muted} style={{ flex: 1 }}>Level {s.progress.level} · {s.progress.lessons} {s.progress.lessons === 1 ? 'lesson' : 'lessons'} passed · {s.progress.words} words read · {s.progress.cards} flashcards known · {s.progress.badges} {s.progress.badges === 1 ? 'badge' : 'badges'} · {s.progress.streak ?? 0}-day learning streak</Txt></Row>
         : <Txt size={13} color={C.muted}>Nothing reported yet.</Txt>}
+
+      <Txt size={14} bold>Check before you buy</Txt>
+      <Txt size={13} color={C.muted}>{s.buys ? `Did the check on ${s.checked ?? 0} of ${s.buys} ${s.buys === 1 ? 'buy' : 'buys'}. It is required for the first three, then optional.` : 'No buys yet.'}</Txt>
 
       <Txt size={14} bold>Holdings</Txt>
       {s.holdings.length === 0 && <Txt size={13} color={C.muted}>All in cash.</Txt>}
@@ -172,7 +176,7 @@ export default function TeacherClass() {
       <Txt size={14} bold>Recent trades</Txt>
       {s.recent.length === 0 && <Txt size={13} color={C.muted}>No trades yet.</Txt>}
       {s.recent.map((t) => (
-        <Txt key={t.id} size={13} color={C.muted}>{fmtDate(t.at)} · {t.side === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)} of {t.symbol} at {money(t.price)}</Txt>
+        <Txt key={t.id} size={13} color={C.muted}>{fmtDate(t.at)} · {t.side === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)} of {t.symbol} at {money(t.price)}{t.side === 'buy' ? ` · ${t.why ? `reason: ${reasonLabel(t.why)}` : 'check skipped'}` : ''}</Txt>
       ))}
       <Btn title={`Manage ${s.name}`} kind="ghost" height={42} style={wide ? { alignSelf: 'flex-start', paddingHorizontal: 24 } : undefined} onPress={() => manage(s)} />
     </>

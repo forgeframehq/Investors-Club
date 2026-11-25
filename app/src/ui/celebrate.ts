@@ -1,5 +1,5 @@
 import { BADGE_ART, RANK_ART } from '@/data/art';
-import { badges, did, level, streak } from '@/lib/store';
+import { badges, did, level } from '@/lib/store';
 
 import { alertBox, toast } from './overlay';
 
@@ -24,7 +24,6 @@ export async function mission(id: string) {
   const result = did(id);
   if (result === 'one') toast('Mission done');
   if (result !== 'all') return;
-  const days = streak();
-  toast(days > 1 ? `All three missions done. ${days} days in a row!` : 'All three missions done today!');
+  toast('All three missions done today!');
   for (const b of badges().filter((x) => x.earned && !had.has(x.id))) await alertBox(`Badge earned: ${b.title}`, `${b.how}. Nice work!`, BADGE_ART[b.id]);
 }

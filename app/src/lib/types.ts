@@ -34,6 +34,8 @@ export interface Trade {
   shares: number;
   price: number;
   at: string; // ISO UTC
+  /** Buys only: the reason picked in "Check before you buy". Missing when the check was skipped. */
+  why?: string;
 }
 
 /** A buy or sell placed while the market was closed. It is filled at the first price after the market opens. */
@@ -45,6 +47,7 @@ export interface Order {
   shares?: number;
   dollars?: number;
   at: string; // ISO UTC
+  why?: string;
 }
 /** An order that could not be filled, with the reason in plain words. */
 export interface OrderNote { id: string; symbol: string; side: 'buy' | 'sell'; why: string; at: string }
@@ -74,11 +77,10 @@ export interface Settings {
   onboarded: boolean;
   accent?: string;
   level: Level;
-  /** Optional keys for getting prices straight from the data providers when there is no class server. */
-  finnhubKey: string;
-  twelveKey: string;
-  /** Address of the class server. Empty means "use the built-in one, if any". */
-  server: string;
+  /** Up to three companies the student already knows, picked in the welcome steps. Lessons use them as examples. */
+  brands?: string[];
+  /** True once the trial buy has been finished (or skipped by making a real one). */
+  triedBuy?: boolean;
 }
 
 /** Set once this device has joined a class as a student. */
@@ -110,6 +112,8 @@ export interface Learned {
   cards: Record<string, number>;
   /** Flashcard rounds finished. */
   rounds: number;
+  /** Stocks checked with "Check before you buy". Each one counts once for points, however often it is bought. */
+  checked?: string[];
 }
 
 /** What a student has learned, in numbers. Sent to the class server so the teacher can see it. */
@@ -119,7 +123,7 @@ export interface Progress {
   cards: number;
   badges: number;
   level: number;
-  /** Days in a row with every daily mission done. */
+  /** Days in a row with some learning done: a lesson, a flashcard round or a quick review. */
   streak: number;
 }
 
@@ -138,6 +142,9 @@ export interface Play {
   lastFull: string;
   /** How many days every mission was done, ever. */
   fullDays: number;
+  /** The learning streak: the last day something was learned, and how many days in a row that makes. */
+  learnDay?: string;
+  learnStreak?: number;
   guess: Guess | null;
   lastResult: GuessResult | null;
   right: number;
@@ -145,6 +152,8 @@ export interface Play {
 }
 
 export interface HistoryPoint { d: string; c: number }
+/** One 15-minute step of a trading day: when it started (ms) and the last price in it. */
+export interface IntraPoint { t: number; c: number }
 
 export interface Standing {
   id: string;
@@ -164,6 +173,9 @@ export interface StudentDetail extends Standing {
   progress: Progress | null;
   /** When they last traded or opened the app in this class (ISO UTC), or '' if never since joining. */
   seen: string;
+  /** How many times they bought, and how many of those went through "Check before you buy". */
+  buys?: number;
+  checked?: number;
 }
 
 /** A school on the schools table: how its students are doing on average. */
