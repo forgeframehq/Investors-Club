@@ -32,7 +32,7 @@ export const LESSONS: Lesson[] = [
       { title: 'A market for ownership', body: 'The [stock market](market) is where people buy and sell [shares](share): small pieces of ownership in companies. Buy a share of {b1} and you are a part-owner of {b1}.' },
       { title: 'Why companies sell shares', body: 'Selling shares raises money without borrowing it. The first sale to the public is called an [IPO](ipo). After that, shares trade between investors, and the company is not paid again.' },
       { title: 'Why people invest', body: 'Owners can gain in two ways: the share price rises, or the company pays a [dividend](dividend). Shares can also fall, sometimes a lot. That is the [risk](risk).' },
-      { title: 'Practice money, real prices', body: 'Here you invest $10,000 of practice money. It is not real, so nothing can be lost. The prices are the real ones from New York, so what you learn is real.' },
+      { title: 'Practice money, real prices', body: 'Here you invest $10,000 of practice money. It is not real, so nothing can be lost. The prices are the real ones from the two big US exchanges in New York, the New York Stock Exchange (NYSE) and the Nasdaq, so what you learn is real.' },
     ],
     quiz: [
       { q: 'What is the stock market?', options: ['A place where shares of companies are bought and sold', 'A bank run by the government', 'A shop that sells company products'], answer: 0, why: 'It is where pieces of ownership in companies change hands.' },
@@ -249,7 +249,7 @@ export const LESSONS: Lesson[] = [
       { title: 'How insurance works', body: 'Customers pay a premium each year. If something bad happens, such as a hurricane damaging a building, the insurer pays for it. Most years, most customers do not claim.' },
       { title: 'Reinsurance', body: 'One huge disaster could cost more than an insurer has. So insurers buy insurance themselves. That is [reinsurance](insurance), and Bermuda is one of its biggest centres in the world.' },
       { title: 'How a reinsurer earns', body: 'It collects premiums, pays claims, and invests the money in between. A quiet hurricane season means strong [earnings](earnings). A severe one can mean a loss for the year.' },
-      { title: 'Bermuda companies on the exchange', body: 'Butterfield Bank, RenaissanceRe, Arch Capital, Everest, AXIS, Hamilton and SiriusPoint all trade in New York. They are in the Bermuda group in this app.' },
+      { title: 'Bermuda companies on the exchange', body: 'Butterfield Bank, RenaissanceRe, Arch Capital, Everest, AXIS, Hamilton and SiriusPoint all trade on the NYSE or the Nasdaq in New York. They are in the Bermuda group in this app.' },
       { title: 'The BSX and the dollar', body: 'Bermuda has its own exchange, the BSX. This app uses US prices because they update all day. One Bermuda dollar equals one [US dollar](usd), so no conversion is needed.' },
     ],
     quiz: [

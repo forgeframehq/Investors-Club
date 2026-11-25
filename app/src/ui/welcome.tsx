@@ -147,7 +147,7 @@ export function Welcome() {
             <Txt size={16} color={C.muted}>Made for Bermuda schools. Learn how the stock market works by trying it yourself.</Txt>
             <View style={{ gap: 16, marginTop: 8 }}>
               <Point icon="cash-outline" title={`${money(START_CASH, false)} of practice money`} body="It is not real money, so it is safe to try things out." />
-              <Point icon="pulse-outline" title="Real companies, real prices" body="Buy pieces of companies you know, including ones based right here in Bermuda." />
+              <Point icon="pulse-outline" title="Real prices from the NYSE and the Nasdaq" body="Updated every minute while the market is open. Buy pieces of companies you know, including ones based right here in Bermuda." />
               <Point icon="trophy-outline" title="Learn step by step" body="Short lessons with real companies, then flashcards, badges and your class table." />
             </View>
           </>
