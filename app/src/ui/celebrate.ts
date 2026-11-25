@@ -14,7 +14,7 @@ export function watchBadges() {
     const fresh = badges().filter((b) => b.earned && !had.has(b.id));
     for (const b of fresh) await alertBox(`Badge earned: ${b.title}`, `${b.how}. Nice work!`, BADGE_ART[b.id]);
     const now = level();
-    if (now.number > was) await alertBox(`Level ${now.number}: ${now.name}`, 'You climbed a rung on the progress ladder. Keep learning to reach the next one.', RANK_ART[now.number - 1]);
+    if (now.number > was) await alertBox(`Rank ${now.number}: ${now.name}`, 'You climbed a rung on the progress ladder. Keep learning to reach the next one.', RANK_ART[now.number - 1]);
   };
 }
 

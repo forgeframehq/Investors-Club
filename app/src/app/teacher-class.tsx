@@ -157,7 +157,7 @@ export default function TeacherClass() {
 
       <Txt size={14} bold>Learning</Txt>
       {s.progress
-        ? <Row gap={8} style={{ alignItems: 'flex-start' }}><Emblem level={s.progress.level} size={34} /><Txt size={13} color={C.muted} style={{ flex: 1 }}>Level {s.progress.level} · {s.progress.lessons} {s.progress.lessons === 1 ? 'lesson' : 'lessons'} passed · {s.progress.words} words read · {s.progress.cards} flashcards known · {s.progress.badges} {s.progress.badges === 1 ? 'badge' : 'badges'} · {s.progress.streak ?? 0}-day learning streak</Txt></Row>
+        ? <Row gap={8} style={{ alignItems: 'flex-start' }}><Emblem level={s.progress.level} size={34} /><Txt size={13} color={C.muted} style={{ flex: 1 }}>Rank {s.progress.level} · {s.progress.lessons} {s.progress.lessons === 1 ? 'lesson' : 'lessons'} passed · {s.progress.words} words read · {s.progress.cards} flashcards known · {s.progress.badges} {s.progress.badges === 1 ? 'badge' : 'badges'} · {s.progress.streak ?? 0}-day learning streak</Txt></Row>
         : <Txt size={13} color={C.muted}>Nothing reported yet.</Txt>}
 
       <Txt size={14} bold>Check before you buy</Txt>

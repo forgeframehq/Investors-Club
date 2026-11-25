@@ -47,7 +47,7 @@ export default function Ladder() {
                   )}
                   {reached && !current && <Icon name="checkmark-circle" size={18} color={C.accent} />}
                 </Row>
-                <Txt size={13} color={C.muted}>Level {i + 1} · {rung.points} points</Txt>
+                <Txt size={13} color={C.muted}>Rank {i + 1} · {rung.points} points</Txt>
                 <Txt size={14} color={reached ? C.text : C.muted}>{rung.about}</Txt>
               </View>
             </View>

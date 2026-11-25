@@ -71,6 +71,8 @@ export type Level = 'simple' | 'detailed';
 export interface Settings {
   /** First name shown on the Portfolio tab and used to fill in the class join form. */
   name: string;
+  /** The first letter of the surname. With the first name it tells classmates apart; a full surname is never asked for. */
+  initial?: string;
   /** Id of the picture chosen in the welcome steps (see data/avatars.ts). */
   avatar: string;
   /** True once the welcome steps have been finished on this device. */

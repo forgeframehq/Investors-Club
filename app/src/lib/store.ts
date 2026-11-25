@@ -2,7 +2,7 @@
 // learned, the last prices seen, and (if you joined one) your class. Prices themselves come from lib/market.ts.
 import { useSyncExternalStore } from 'react';
 
-import { LESSONS } from '@/data/lessons';
+import { LESSONS, LEVELS, levelDone, RECAP_QUESTIONS, recapId } from '@/data/lessons';
 import { STOCKS } from '@/data/stocks';
 import { TERMS } from '@/data/glossary';
 
@@ -236,6 +236,13 @@ export function finishLesson(id: string, score: number) {
   db.learned.lessons[id] = Math.max(score, db.learned.lessons[id] ?? 0);
   learnedToday();
 }
+/** True once a level's recap has been passed with full marks. */
+export const recapPassed = (level: number) => (db.learned.lessons[recapId(level)] ?? 0) >= RECAP_QUESTIONS;
+/**
+ * Buying unlocks once every Level 1 lesson is passed. Anyone who already owns or has traded something keeps
+ * trading, so nobody who used the app before the levels existed is locked out.
+ */
+export const canBuy = () => levelDone(db.learned.lessons, 1) || portfolio().trades.length > 0 || portfolio().holdings.length > 0;
 /** Notes that a stock was looked at with "Check before you buy". Each stock counts once, so buying often earns nothing extra. */
 export function markChecked(symbol: string) {
   const list = db.learned.checked ?? (db.learned.checked = []);
@@ -391,6 +398,7 @@ export function badges(): Badge[] {
     b('patient', 'Patient Investor', 'Hold a stock for 30 days', 'hourglass-outline', p.holdings.length > 0 && Date.now() - oldestHeld >= 30 * 86400000),
     b('word-all', 'Dictionary', 'Read every word in the glossary', 'library-outline', db.learned.terms.length >= TERMS.length),
     b('graduate', 'Graduate', 'Pass every lesson quiz with full marks', 'ribbon-outline', lessonsDone >= LESSONS.length),
+    ...LEVELS.filter((x) => x.n < 5).map((x) => b(`level-${x.n}`, `Level ${x.n}: ${x.title}`, `Pass the Level ${x.n} recap with full marks`, 'ribbon-outline', recapPassed(x.n))),
   ];
 }
 

@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,7 +7,7 @@ import { orderInClass, tradeInClass } from '@/lib/classroom';
 import { fmtShares, money, parseNum, trimNum } from '@/lib/format';
 import { freshQuote, isOpen, nextOpenText } from '@/lib/market';
 import { roundShares } from '@/lib/rules';
-import { db, holdingOf, inClass, orderSolo, portfolio, setSetting, stock, tradeSolo, useStore } from '@/lib/store';
+import { canBuy, db, holdingOf, inClass, orderSolo, portfolio, setSetting, stock, tradeSolo, useStore } from '@/lib/store';
 
 import { watchBadges } from './celebrate';
 import { Coach, reasonLabel } from './coach';
@@ -19,6 +20,7 @@ const MUST_CHECK = 3;
 /** Bottom sheet for buying or selling one stock. `side` null means closed. A buy starts with the check. */
 export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'buy' | 'sell' | null; onClose: () => void }) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { quotes } = useStore();
   const [unit, setUnit] = useState<'dollars' | 'shares'>('dollars');
   const [text, setText] = useState('');
@@ -93,7 +95,14 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
         <Pressable accessibilityLabel="Close" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.62)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: insets.bottom + 14, gap: 12 }}>
             <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: C.cardHi, alignSelf: 'center' }} />
-            {checking ? (
+            {buying && !canBuy() ? (
+              <>
+                <Row><Icon name="lock-closed-outline" color={C.accent} /><Txt size={19} bold style={{ flex: 1 }}>Finish Level 1 first</Txt></Row>
+                <Txt size={15}>Buying unlocks after the four short lessons in Level 1: what the market is, what a share is, exchanges, and how to buy and sell. Know it already? Skip each one to its quiz.</Txt>
+                <Btn title="Go to my lessons" onPress={() => { onClose(); router.push('/learn'); }} />
+                <Btn title="Cancel" kind="plain" onPress={onClose} />
+              </>
+            ) : checking ? (
               <>
                 <Coach symbol={symbol} onDone={(reason) => { setWhy(reason); setChecking(false); }} onSkip={buysSoFar >= MUST_CHECK ? () => setChecking(false) : undefined} />
                 <Btn title="Cancel" kind="plain" onPress={onClose} />

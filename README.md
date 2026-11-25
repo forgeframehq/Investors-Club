@@ -164,8 +164,11 @@ and Twelve Data calls, including real logos, are not covered by it. Check those 
 
 ## Learning path (added 2026-11-24)
 
-- Nine lessons in order, from "What is the stock market?" to "The company and the crowd", written for ages 12
-  to 14 with real companies and proper terms. Every lesson has "Skip to the quiz". Cards can hold something to tap (`ui/play.tsx`) and hard words that open the glossary
+- Sixteen short lessons in four levels (The basics, Why prices move, Reading a company, Investing well) plus a
+  Bermuda bonus, written for ages 12 to 14: one idea per lesson, real companies, proper terms. Every lesson has
+  "Skip to the quiz". Each level ends with a five-question recap that earns a badge. Buying unlocks when Level 1
+  is passed (`canBuy()`); anyone who already traded is not locked. The quick review only asks about lessons
+  already passed. Sign-up asks for a first name and a last initial, never a surname. Cards can hold something to tap (`ui/play.tsx`) and hard words that open the glossary
   (`[word](term-id)` in `data/lessons.ts`). `{b1}` to `{b3}` are the three companies picked at sign-up.
 - Sign-up ends with a school drop-down (every Bermuda school), then the class and its code. The first lesson
   opens straight after, and a trial buy (`/first-buy`) uses a spare $100 that never touches the portfolio.

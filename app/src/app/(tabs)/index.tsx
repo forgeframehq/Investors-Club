@@ -161,10 +161,10 @@ export default function Market() {
   const flat = Math.abs(today) < 0.005;
   const done = missionsDone().length;
   const days = streak();
-  // The next thing to learn: the first lesson not yet passed, with the trial buy straight after "What is the stock market?".
+  // The next thing to learn: the first lesson not yet passed, with the trial buy straight after Level 1.
   const passedLesson = (id: string) => (learned.lessons[id] ?? 0) >= (LESSONS.find((l) => l.id === id)?.quiz.length ?? 99);
   const passedCount = LESSONS.filter((l) => passedLesson(l.id)).length;
-  const tryBuy = !settings.triedBuy && passedLesson('market');
+  const tryBuy = !settings.triedBuy && passedLesson('orders');
   const step = LESSONS.find((l) => !passedLesson(l.id));
 
   return (

@@ -22,7 +22,7 @@ export default function ClassTab() {
   const [classes, setClasses] = useState<ClassChoice[] | null>(null);
   const [choice, setChoice] = useState<ClassChoice | null>(null);
   const [code, setCode] = useState('');
-  const [name, setName] = useState(settings.name);
+  const [name, setName] = useState([settings.name, settings.initial].filter(Boolean).join(' '));
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -111,7 +111,7 @@ export default function ClassTab() {
                   {classes && classes.length === 0 && <Txt size={15}>{school} has no class here yet. Ask your teacher to make one, then come back. Your practice portfolio still works.</Txt>}
                   {classes && classes.length > 0 && <Btn title={choice ? `${choice.name} (${choice.teacher})` : 'Choose your class'} kind="ghost" left icon="people-outline" onPress={chooseClass} />}
                   <Field accessibilityLabel="Class code" placeholder="Class code from your teacher" value={code} onChangeText={(t) => setCode(t.toUpperCase())} autoCapitalize="characters" autoCorrect={false} maxLength={6} style={{ backgroundColor: C.cardHi }} />
-                  <Field accessibilityLabel="Your name" placeholder="First name and last initial, like Sam T" value={name} onChangeText={setName} maxLength={20} autoCorrect={false} style={{ backgroundColor: C.cardHi }} />
+                  <Field accessibilityLabel="Your name" placeholder="First name and last initial" value={name} onChangeText={setName} maxLength={20} autoCorrect={false} style={{ backgroundColor: C.cardHi }} />
                   <Field accessibilityLabel="PIN" placeholder="Choose a PIN (4 digits)" value={pin} onChangeText={(t) => setPin(t.replace(/\D/g, ''))} keyboardType="number-pad" secureTextEntry maxLength={8} style={{ backgroundColor: C.cardHi }} />
                   {!!error && <Txt size={14} color={C.bad}>{error}</Txt>}
                   <Btn title="Join class" busy={busy} disabled={!choice || !code.trim() || !name.trim() || pin.length < 4} onPress={join} />

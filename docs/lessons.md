@@ -114,3 +114,13 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
 - **The first lessons were pitched too young.** A lemonade-stand story and a lesson on "what is a company" read
   as babyish. The path now starts at "What is the stock market?", uses real companies and proper terms, and every
   lesson can be skipped to its quiz. Ask the age group before writing teaching content.
+
+## 2026-11-25 — Levels
+
+- **The quick review asked about lessons not yet taken.** It drew from every lesson, so a new student met a
+  question on interest rates before anything had taught them. It now draws only from passed lessons.
+- **One idea per lesson.** Nine lessons crammed several ideas each; sixteen two-minute lessons in four levels read
+  better. When a lesson's quiz needs a fact, check a card in that same lesson teaches it.
+- **Buying is locked until Level 1 is passed.** Tests that buy must pass the four lessons first (`pass` and
+  `LEVEL1` in `tests/e2e.js`). Passing lessons also raises rank sooner, so more "rank up" boxes appear after a
+  badge: dismiss them in a loop.

@@ -31,12 +31,12 @@ export default function Profile() {
         <Txt size={22} bold>{settings.name || 'Investor'}</Txt>
         <Row gap={8}>
           <Emblem level={lv.number} size={34} />
-          <Txt size={14} color={C.muted}>Level {lv.number}: {lv.name}</Txt>
+          <Txt size={14} color={C.muted}>Rank {lv.number}: {lv.name}</Txt>
         </Row>
       </View>
       <Btn title="See my progress ladder" kind="ghost" icon="podium-outline" onPress={() => router.push('/ladder')} />
       <Txt size={18} bold>Name</Txt>
-      <Field accessibilityLabel="Your first name" placeholder="First name, like Sam" value={name} onChangeText={saveName} maxLength={20} autoCorrect={false} autoCapitalize="words" />
+      <Field accessibilityLabel="Your first name" placeholder="First name" value={name} onChangeText={saveName} maxLength={20} autoCorrect={false} autoCapitalize="words" />
       {!!cls && <Txt size={13} color={C.muted}>Your class knows you as {cls.name}. That name stays the same so you keep your class portfolio.</Txt>}
       <Txt size={18} bold>Picture</Txt>
       <Card>

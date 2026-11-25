@@ -2,8 +2,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { lesson, LESSONS, METERS_LESSON, reviewLesson } from '@/data/lessons';
-import { finishLesson, learnedToday, streak, useStore } from '@/lib/store';
+import { lesson, LESSONS, levelDone, METERS_LESSON, recapLesson, reviewLesson } from '@/data/lessons';
+import { db, finishLesson, learnedToday, recapPassed, streak, useStore } from '@/lib/store';
 import { Avatar } from '@/ui/avatar';
 import { mission, watchBadges } from '@/ui/celebrate';
 import { Bar, Btn, C, Card, Empty, Icon, Page, Row, Txt } from '@/ui/kit';
@@ -13,23 +13,27 @@ import { Words } from '@/ui/words';
 
 /** A lesson: a few cards (one idea each, some with something to tap), then a quiz. `review` is three questions from any lesson. */
 export default function LessonScreen() {
-  const { id, first } = useLocalSearchParams<{ id: string; first?: string }>();
+  const { id, first, again } = useLocalSearchParams<{ id: string; first?: string; again?: string }>();
   // The key starts the screen afresh when one lesson leads straight into the next.
-  return <LessonBody key={String(id)} id={String(id)} first={!!first} />;
+  return <LessonBody key={`${id}${again ?? ''}`} id={String(id)} first={!!first} />;
 }
 
 function LessonBody({ id, first }: { id: string; first: boolean }) {
   const router = useRouter();
   const { settings } = useStore();
-  const [l] = useState(() => (id === 'review' ? reviewLesson() : lesson(String(id))));
+  const [l] = useState(() => (id === 'review' ? reviewLesson(db.learned.lessons) : id.startsWith('recap-') ? recapLesson(Number(id.slice(6))) : lesson(id)));
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   if (!l) return <Empty icon="help-circle-outline" title="Lesson not found" body="Go back and choose a lesson." />;
 
   const review = l.id === 'review';
+  const recap = l.id.startsWith('recap-');
   const number = LESSONS.findIndex((x) => x.id === l.id) + 1;
-  const following = review ? undefined : LESSONS[number];
+  const following = review || recap ? undefined : LESSONS[number];
+  // After the last lesson of a level comes that level's recap.
+  const recapNext = !review && !recap && l.level < 5 && following?.level !== l.level && levelDone(db.learned.lessons, l.level) && !recapPassed(l.level) ? l.level : 0;
+  const afterRecap = recap ? LESSONS.find((x) => x.level === l.level + 1) : undefined;
   const total = l.cards.length + l.quiz.length;
   const done = step >= total;
   const card = step < l.cards.length ? l.cards[step] : null;
@@ -55,7 +59,7 @@ function LessonBody({ id, first }: { id: string; first: boolean }) {
 
   return (
     <Page>
-      <Stack.Screen options={{ title: review ? l.title : `Lesson ${number} of ${LESSONS.length}` }} />
+      <Stack.Screen options={{ title: review || recap ? l.title : `Lesson ${number} of ${LESSONS.length}` }} />
       <Bar value={Math.min(step, total) / total} height={6} />
 
       {card && (
@@ -120,14 +124,18 @@ function LessonBody({ id, first }: { id: string; first: boolean }) {
             <Txt size={24} bold>You scored {score} of {l.quiz.length}</Txt>
             <Txt size={15} color={C.muted} center>
               {review ? 'A quick review a day keeps your learning streak going.'
-                : passed ? (l.id === METERS_LESSON ? 'Full marks. Every stock now shows you a Company meter and a Crowd meter.' : 'Full marks. This lesson is passed.')
+                : recap ? (passed ? `Full marks. You earned the Level ${l.level} badge.` : 'Full marks earns the level badge. The questions change each time, so try again.')
+                : passed ? (l.id === 'orders' ? 'Full marks. Level 1 is done, so buying is unlocked.' : l.id === METERS_LESSON ? 'Full marks. Every stock now shows you a Company meter and a Crowd meter.' : 'Full marks. This lesson is passed.')
                 : 'Get every question right to pass the lesson. You can try as many times as you like.'}
             </Txt>
           </Card>
           {!review && !passed && <Btn title="Try again" onPress={again} />}
-          {!review && passed && l.id === 'market' && !settings.triedBuy && <Btn title="Try your first buy" icon="cart-outline" onPress={() => router.replace('/first-buy')} />}
-          {!review && passed && following && <Btn title={`Next lesson: ${following.title}`} kind={l.id === 'market' && !settings.triedBuy ? 'ghost' : 'primary'} onPress={() => router.replace(`/lesson/${following.id}`)} />}
-          <Btn title="Back to lessons" kind={review || (passed && !following) ? 'primary' : 'ghost'} onPress={() => (router.canGoBack() ? router.back() : router.replace('/learn'))} />
+          {!review && !recap && passed && l.id === 'orders' && !settings.triedBuy && <Btn title="Try your first buy" icon="cart-outline" onPress={() => router.replace('/first-buy')} />}
+          {!!recapNext && passed && <Btn title={`Level ${recapNext} recap`} icon="ribbon-outline" kind={l.id === 'orders' && !settings.triedBuy ? 'ghost' : 'primary'} onPress={() => router.replace(`/lesson/recap-${recapNext}`)} />}
+          {!review && !recap && !recapNext && passed && following && <Btn title={`Next lesson: ${following.title}`} onPress={() => router.replace(`/lesson/${following.id}`)} />}
+          {recap && passed && afterRecap && <Btn title={`Start Level ${afterRecap.level}: ${afterRecap.title}`} onPress={() => router.replace(`/lesson/${afterRecap.id}`)} />}
+          {recap && !passed && <Btn title="Try again" onPress={() => router.replace(`/lesson/${l.id}?again=${Date.now()}`)} />}
+          <Btn title="Back to lessons" kind={review || (passed && !following && !afterRecap) ? 'primary' : 'ghost'} onPress={() => (router.canGoBack() ? router.back() : router.replace('/learn'))} />
         </>
       )}
     </Page>
