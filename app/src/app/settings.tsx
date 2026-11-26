@@ -18,6 +18,13 @@ export default function Settings() {
     startOver();
     router.replace('/');
   };
+  // TEMPORARY, for the demo period (asked for on 2026-11-26): lets a tester get back to the intro without the
+  // teacher area. Remove it before real classes start, so students cannot wipe their money.
+  const reset = async () => {
+    if (!(await confirm('Reset this device?', 'This clears your name, picture, practice portfolio, badges and lessons on this device and takes you back to the start. A class portfolio is kept by your class.', 'Reset', { danger: true }))) return;
+    startOver();
+    router.replace('/');
+  };
   const theme = settings.theme ?? 'light';
   const pick = (title: string, on: boolean, press: () => void) => <Btn key={title} title={title} kind={on ? 'primary' : 'ghost'} style={{ flex: 1 }} height={44} onPress={press} />;
 
@@ -79,6 +86,12 @@ export default function Settings() {
           <Txt size={13} color={C.muted}>Use this on a shared tablet so the next student can sign in.</Txt>
         </>
       )}
+
+      <Txt size={18} bold>Testing</Txt>
+      <View>
+        <LinkRow icon="refresh-outline" title="Reset this device" value="Temporary" onPress={reset} />
+      </View>
+      <Txt size={13} color={C.muted}>For testing only. Clears this device and goes back to the start.</Txt>
 
       <Card>
         <Txt size={15} bold>About Investors Club of Bermuda</Txt>

@@ -57,6 +57,8 @@ cd ../tests && ./run-e2e.sh                                        # drives the 
 - **Colours come from `src/lib/theme.ts`** and are read at render time (`C.accent`, with `C.onAccent` for anything
   drawn on it), so the colour picker and dark mode work. Do not copy them into module-level constants or
   `StyleSheet.create`. Text sizes go through `Txt` (or multiply by `T.scale`) so the Large text setting works.
+- **TEMPORARY (since 2026-11-26): Settings → "Reset this device" is back for the demo period.** Remove it (and
+  its test) before real classes start; ask Sudhi first.
 - **Students cannot reset or start over.** A student in a class has Settings → Sign out (for shared tablets).
   The only full reset is "Reset this device" on `/teacher`, which is also how Sudhi tests from fresh.
 - **No `Alert.alert`.** Use the promise-based dialogs in `src/ui/overlay.tsx`; they also work in the browser test.

@@ -350,7 +350,7 @@ function driver(p, errs) {
 
   await go('/settings'); await shot('20-settings');
   t = await text();
-  check(!t.includes('Start over') && !t.includes('Sign out') && !t.includes('Reset'), 'a student with no class has no way to reset or start over');
+  check(!t.includes('Start over') && !t.includes('Sign out') && t.includes('Reset this device'), 'Settings has the temporary reset for testing, and no sign out without a class');
   const has = (rgb) => p.evaluate((c) => [...document.querySelectorAll('div')].some((e) => getComputedStyle(e).backgroundColor === c), rgb);
   check(await tap('Dark') && (await data()).settings.theme === 'dark' && await has('rgb(13, 25, 36)') && !(await has('rgb(255, 243, 238)')), 'dark mode recolours the app'); await shot('20-settings-dark');
   await go('/'); await shot('20-home-dark'); await go('/portfolio'); await shot('20-portfolio-dark'); await go('/settings');
@@ -368,6 +368,9 @@ function driver(p, errs) {
   await go('/settings'); await shot('21-settings-clean');
   t = await text();
   check(!t.includes('Market data') && !t.includes('For teachers') && !/key/i.test(t), 'Settings has no setup screens or teacher link for students');
+  check(await tap('Reset this device') && await tap('Reset'), 'the temporary reset asks first'); await sleep(900);
+  check((await text()).includes('Welcome to Investors Club') && !(await data()).settings.onboarded, 'and goes back to the start');
+  await welcome({ tap, type }, 'Picture Turtle'); await tap('Practise on my own for now'); await sleep(500);
   await go('/class');
   check(!(await text()).includes('I am a teacher') && (await text()).includes('Choose your school'), 'the Class tab has no teacher link');
 
