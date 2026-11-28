@@ -144,3 +144,12 @@ Lessons from before this app had its own repo are in `forgeframehq/apps/docs/les
   are getters now, so dark mode reaches them.
 - **To test from fresh:** open `/teacher` and tap "Reset this device". Students no longer have "Start over".
 - **Pastel tiles keep dark icons in dark mode**; anything drawn on a fixed colour needs a fixed colour too.
+
+## 2026-11-28 — Teacher sync and market clock
+
+- **The teacher bar vanished in dark mode**: it used the text colour as its background. Bars with white text use
+  `C.dark`.
+- **A count with no detail.** Students on an older copy of the app send how many lessons they passed but not
+  which. The teacher view says the detail arrives when they next open the app, instead of showing "0 of 4".
+- **The market clock is worked out from New York minutes, not by stepping through time**, so it costs one date
+  format a tick. The next opening is found once in ten-minute steps and remembered until it passes.

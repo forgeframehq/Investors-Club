@@ -13,6 +13,7 @@ import { dayChangePct, inClass, missionsDone, portfolio, stock, streak, toggleWa
 import { PriceChart } from '@/ui/chart';
 import { BermudaFlag } from '@/ui/flag';
 import { Avatar } from '@/ui/avatar';
+import { MarketClock } from '@/ui/clock';
 import { Btn, C, Card, Empty, Icon, IconBtn, PracticeTag, Row, SearchField, TapCard, Tile, Txt, WIDE, type IconName } from '@/ui/kit';
 import { pick } from '@/ui/overlay';
 import { Ticker } from '@/ui/ticker';
@@ -184,7 +185,7 @@ export default function Market() {
               <Txt size={17} bold lines={1}>{settings.name ? `Hi, ${settings.name}` : 'Welcome'}</Txt>
               <Row gap={6}>
                 <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: src === 'none' || net.error ? C.bad : isOpen() ? C.good : C.muted }} />
-                <Txt size={12} color={C.muted} lines={1}>{src === 'none' ? 'No connection' : net.error || `${isOpen() ? 'Market open' : 'Market closed'}${net.at ? ` · updated ${ago(net.at)}` : ''}`}</Txt>
+                <Txt size={12} color={C.muted} lines={1}>{src === 'none' ? 'No connection' : net.error || (net.at ? `Prices updated ${ago(net.at)}` : 'Getting prices...')}</Txt>
               </Row>
             </View>
           </TapCard>
@@ -221,6 +222,7 @@ export default function Market() {
             <Txt size={14} color={C.muted}>{inClass() ? 'Class portfolio value' : 'Practice portfolio value'}</Txt>
             <Txt size={38} bold lines={1}>{money(total)}</Txt>
             <PracticeTag />
+            <MarketClock />
             <Row gap={6}>
               <Txt size={14} color={C.muted}>Today</Txt>
               <Txt size={14} bold color={flat ? C.muted : today > 0 ? C.good : C.bad}>{signedMoney(today)} ({flat ? '0.00%' : pct(todayPct)})</Txt>

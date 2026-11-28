@@ -10,6 +10,7 @@ import { roundShares } from '@/lib/rules';
 import { canBuy, db, holdingOf, inClass, orderSolo, portfolio, setSetting, stock, tradeSolo, useStore } from '@/lib/store';
 
 import { watchBadges } from './celebrate';
+import { MarketClock } from './clock';
 import { Coach, reasonLabel } from './coach';
 import { Btn, C, Chip, Field, Icon, PracticeTag, Row, Txt } from './kit';
 import { toast } from './overlay';
@@ -111,6 +112,7 @@ export function TradeSheet({ symbol, side, onClose }: { symbol: string; side: 'b
             <>
             <Txt size={19} bold>{buying ? 'Buy' : 'Sell'} {s.name}</Txt>
             <PracticeTag />
+            <MarketClock />
             {!!why && <Txt size={13} color={C.accent}>Your reason: {reasonLabel(why)}</Txt>}
             <Txt size={14} color={C.muted}>
               {money(price)} a share · {buying ? `you have ${money(p.cash)} cash` : `you own ${fmtShares(held)}`}

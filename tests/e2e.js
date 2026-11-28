@@ -78,6 +78,7 @@ function driver(p, errs) {
   // ---- The trial buy: step by step, without touching the real portfolio ----
   await go('/'); await shot('01-home-start');
   check((await text()).includes('START HERE') && (await text()).includes('Practice money, not real'), 'home shows where to start and labels the money as practice money');
+  check(/Market (open|closed|closing soon)/.test(await text()), 'home shows the market clock');
   await go('/first-buy');
   check(await tap('Choose Roblox') && await tap('Next') && await tap('$25') && await tap('Confirm trial buy'), 'go through the trial buy'); await shot('01-trial-buy');
   d = await data();
@@ -312,6 +313,8 @@ function driver(p, errs) {
   t = await text();
   check(/bought .* of NTB/.test(t) && t.includes('Learning') && t.includes('Butterfield Bank'), "teacher sees the student's holdings, trades and learning");
   check(t.includes('reason: To spread my risk') && t.includes('Did the check on 1 of 1 buy'), 'teacher sees why the student bought and how often they checked first');
+  check(t.includes('Level 1: The basics') && t.includes('4 of 4') && t.includes('Allocation') && /Bermuda \d+%/.test(t) && /Cash \d+%/.test(t) && t.includes('Today') && t.includes('% of portfolio'), 'teacher sees which lessons are passed, the allocation and today\'s move');
+  check(t.includes('Updates itself'), 'the teacher view keeps itself up to date');
   check(await tap('Most learned') && await tap('Name'), 'sort the students');
   await p.setViewport({ width: 1366, height: 800, deviceScaleFactor: 1 }); await sleep(600); await shot('19-teacher-laptop');
   check((await text()).includes('LAST ACTIVE'), 'on a laptop the students are shown as a table');
@@ -330,6 +333,7 @@ function driver(p, errs) {
   check(sam && sam.fullName === 'Sam Trott' && !JSON.stringify(board).includes('Trott'), 'the teacher gets the full name; the student leaderboard never does');
   await s.go('/settings');
   check((await s.text()).includes('Sign out') && !(await s.text()).includes('Start over'), 'a student in a class can sign out, for shared tablets');
+  check(sam && sam.progress.passed.includes('orders') && typeof sam.today === 'number' && sam.holdings[0].price > 0 && Array.isArray(sam.orders) && sam.history.length === 1, 'the class server sends passed lessons, today\'s move, prices, waiting orders and a daily value');
   check(sam && sam.buys === 1 && sam.checked === 1 && sam.recent[0].why === 'spread', 'the class server keeps the reason for the buy');
   const alex = cls.standings.find((x) => x.name === 'Alex R');
   check(alex && alex.buys >= 2 && alex.checked === 0, 'buys made without the check are counted as unchecked');

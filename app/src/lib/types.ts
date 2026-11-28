@@ -133,6 +133,8 @@ export interface Progress {
   level: number;
   /** Days in a row with some learning done: a lesson, a flashcard round or a quick review. */
   streak: number;
+  /** Ids of the lessons and level recaps passed with full marks, so the teacher sees which ones. */
+  passed?: string[];
 }
 
 /** An up-or-down guess waiting for the price to move. */
@@ -176,11 +178,18 @@ export interface Standing {
 }
 
 export interface StudentDetail extends Standing {
-  holdings: Holding[];
+  /** Holdings, with the current price and yesterday's close when the server has them. */
+  holdings: (Holding & { price?: number; prev?: number })[];
   recent: Trade[];
   progress: Progress | null;
   /** When they last traded or opened the app in this class (ISO UTC), or '' if never since joining. */
   seen: string;
+  /** Today's gain or loss in dollars, the same figure the student's Portfolio tab shows. */
+  today?: number;
+  /** Orders placed while the market was closed, still waiting. */
+  orders?: Order[];
+  /** The portfolio's value at the end of each day the server saw it, oldest first. */
+  history?: { d: string; v: number }[];
   /** Their full name, for the teacher only. Empty if they joined before it was asked for. */
   fullName?: string;
   /** How many times they bought, and how many of those went through "Check before you buy". */

@@ -49,6 +49,8 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS quotes (symbol TEXT PRIMARY KEY, price REAL NOT NULL, prev REAL NOT NULL, at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)`,
   // Today's prices in 15-minute steps: `t` is when the step started, `price` the last price seen in it.
+  // One value per student per day, so the teacher can see how a portfolio has moved over time.
+  `CREATE TABLE IF NOT EXISTS daily (student_id TEXT NOT NULL, d TEXT NOT NULL, value REAL NOT NULL, PRIMARY KEY (student_id, d))`,
   `CREATE TABLE IF NOT EXISTS intraday (symbol TEXT NOT NULL, t INTEGER NOT NULL, price REAL NOT NULL, PRIMARY KEY (symbol, t))`,
 ];
 // Columns added after the server first went live. Each is added once; the cache row remembers how far we got,
@@ -300,6 +302,9 @@ async function warm(env: Env) {
   // An empty answer is kept too, so a stock with no logo (funds, mostly) is not asked for again every ten minutes.
   if (env.FINNHUB_KEY) await Promise.allSettled(oldest('l:', 30 * DAY, 2).map((s) => cached(env, `l:${s}`, 30 * DAY, () => finnhubLogo(getJson, env.FINNHUB_KEY!, s))));
   if (env.TWELVE_KEY) for (const s of oldest('h:', DAY / 2, 4)) await getHistory(env, s).catch(() => {});
+  // Keep the value-over-time graphs going on days nobody opens the class: a few classes each run, oldest first.
+  const classes = (await env.DB.prepare(`SELECT c.* FROM classes c LEFT JOIN cache k ON k.k = 'snap:' || c.code WHERE EXISTS (SELECT 1 FROM students s WHERE s.class_code = c.code AND s.removed = 0) AND COALESCE(k.at, 0) < ? ORDER BY COALESCE(k.at, 0) LIMIT 5`).bind(Date.now() - 2 * 3600_000).all<ClassRow>()).results;
+  for (const c of classes) await standings(env, c, null, false).catch(() => {});
   await env.DB.batch([
     env.DB.prepare('DELETE FROM intraday WHERE t < ?').bind(Date.now() - 6 * DAY),
     env.DB.prepare(`DELETE FROM cache WHERE (k LIKE 'tw:%' OR k LIKE 'ib:%') AND k != ? AND (k LIKE 'tw:%' OR at < ?)`).bind(`tw:${new Date().toISOString().slice(0, 10)}`, Date.now() - DAY),
@@ -325,7 +330,10 @@ const cleanWhy = (v: unknown) => (typeof v === 'string' && ['know', 'numbers', '
 function cleanProgress(v: unknown): Progress | null {
   if (!v || typeof v !== 'object') return null;
   const n = (k: keyof Progress) => Math.max(0, Math.min(999, Math.round(Number((v as Record<string, unknown>)[k]) || 0)));
-  return { lessons: n('lessons'), words: n('words'), cards: n('cards'), badges: n('badges'), level: n('level'), streak: n('streak') };
+  // Which lessons and level recaps are passed, by id, so the teacher sees more than a count.
+  const raw = (v as Record<string, unknown>).passed;
+  const passed = Array.isArray(raw) ? [...new Set(raw.filter((x): x is string => typeof x === 'string' && /^[a-z0-9-]{1,24}$/.test(x)))].slice(0, 40) : [];
+  return { lessons: n('lessons'), words: n('words'), cards: n('cards'), badges: n('badges'), level: n('level'), streak: n('streak'), passed };
 }
 const parseProgress = (text: string): Progress | null => { try { return text ? (JSON.parse(text) as Progress) : null; } catch { return null; } };
 
@@ -425,11 +433,13 @@ async function teacherSession(env: Env, teacher: Pick<TeacherRow, 'id' | 'name' 
 
 /** Everyone in a class, richest first. `detail` adds holdings and recent trades for the teacher view. */
 async function standings(env: Env, cls: ClassRow, meId: string | null, detail: boolean) {
-  const [students, holdings, counts, recent] = await env.DB.batch([
+  const [students, holdings, counts, recent, waiting, days] = await env.DB.batch([
     env.DB.prepare('SELECT id, name, full_name, cash, avatar, progress, seen FROM students WHERE class_code = ? AND removed = 0').bind(cls.code),
     env.DB.prepare('SELECT h.student_id, h.symbol, h.shares, h.cost FROM holdings h JOIN students s ON s.id = h.student_id WHERE s.class_code = ? AND s.removed = 0').bind(cls.code),
     env.DB.prepare(`SELECT t.student_id, COUNT(*) AS n, SUM(CASE WHEN t.side = 'buy' THEN 1 ELSE 0 END) AS buys, SUM(CASE WHEN t.side = 'buy' AND t.why != '' THEN 1 ELSE 0 END) AS checked FROM trades t JOIN students s ON s.id = t.student_id WHERE s.class_code = ? GROUP BY t.student_id`).bind(cls.code),
     env.DB.prepare('SELECT t.student_id, t.id, t.symbol, t.side, t.shares, t.price, t.at, t.why FROM trades t JOIN students s ON s.id = t.student_id WHERE s.class_code = ? ORDER BY t.at DESC, t.rowid DESC LIMIT ?').bind(cls.code, detail ? 400 : 0),
+    env.DB.prepare(`SELECT o.student_id, o.id, o.symbol, o.side, o.shares, o.dollars, o.at, o.why FROM orders o JOIN students s ON s.id = o.student_id WHERE s.class_code = ? AND o.status = 'waiting' ORDER BY o.at LIMIT ?`).bind(cls.code, detail ? 400 : 0),
+    env.DB.prepare('SELECT y.student_id, y.d, y.value AS v FROM daily y JOIN students s ON s.id = y.student_id WHERE s.class_code = ? AND y.d >= ? ORDER BY y.d LIMIT ?').bind(cls.code, new Date(Date.now() - 90 * DAY).toISOString().slice(0, 10), detail ? 6000 : 0),
   ]);
   const held = holdings.results as unknown as (Holding & { student_id: string })[];
   const quotes = await getQuotes(env, [...new Set(held.map((h) => h.symbol))]);
@@ -437,18 +447,42 @@ async function standings(env: Env, cls: ClassRow, meId: string | null, detail: b
   const list = (students.results as unknown as { id: string; name: string; full_name: string; cash: number; avatar: string; progress: string; seen: string }[]).map((s) => {
     const mine = held.filter((h) => h.student_id === s.id);
     const value = s.cash + mine.reduce((sum, h) => sum + (quotes[h.symbol] ? h.shares * quotes[h.symbol].price : h.cost), 0);
+    // Today's gain or loss: how far each holding has moved since yesterday's close, as the student's Portfolio tab shows it.
+    const today = mine.reduce((sum, h) => sum + (quotes[h.symbol] ? h.shares * (quotes[h.symbol].price - quotes[h.symbol].prev) : 0), 0);
     return {
       id: s.id, name: s.name, avatar: s.avatar, cash: s.cash, value: Math.round(value * 100) / 100,
       gainPct: Math.round(((value - cls.start_cash) / cls.start_cash) * 10000) / 100,
       trades: count.get(s.id)?.n ?? 0, companies: mine.length, me: s.id === meId || undefined,
       ...(detail ? {
         fullName: s.full_name, progress: parseProgress(s.progress), seen: s.seen, buys: count.get(s.id)?.buys ?? 0, checked: count.get(s.id)?.checked ?? 0,
-        holdings: mine.map(({ symbol, shares, cost }) => ({ symbol, shares, cost })),
+        today: Math.round(today * 100) / 100,
+        holdings: mine.map(({ symbol, shares, cost }) => ({ symbol, shares, cost, ...(quotes[symbol] ? { price: quotes[symbol].price, prev: quotes[symbol].prev } : {}) })),
+        orders: (waiting.results as unknown as (Order & { student_id: string })[]).filter((o) => o.student_id === s.id).map(({ student_id: _, ...o }) => o),
+        history: (days.results as unknown as { student_id: string; d: string; v: number }[]).filter((y) => y.student_id === s.id).map(({ d, v }) => ({ d, v })),
         recent: (recent.results as unknown as (Trade & { student_id: string })[]).filter((t) => t.student_id === s.id).slice(0, 10).map(({ student_id: _, ...t }) => t),
       } : {}),
     };
   });
+  await snapshot(env, cls.code, list);
   return list.sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+}
+
+/**
+ * Saves today's value for every student in a class, at most every 20 minutes. The day is the New York date, so a
+ * day's last saved value is close to that day's closing value. This is what the teacher's "value over time" graph
+ * is drawn from.
+ */
+async function snapshot(env: Env, code: string, list: { id: string; value: number }[]) {
+  if (!list.length) return;
+  const key = `snap:${code}`;
+  const last = await env.DB.prepare('SELECT at FROM cache WHERE k = ?').bind(key).first<{ at: number }>();
+  if (Date.now() - (last?.at ?? 0) < 20 * 60_000) return;
+  await env.DB.prepare(`INSERT INTO cache (k, v, at) VALUES (?, '', ?) ON CONFLICT(k) DO UPDATE SET at = excluded.at`).bind(key, Date.now()).run();
+  const d = newYorkDay(new Date());
+  for (let i = 0; i < list.length; i += 30) {
+    const part = list.slice(i, i + 30);
+    await env.DB.prepare(`INSERT INTO daily (student_id, d, value) VALUES ${part.map(() => '(?,?,?)').join(',')} ON CONFLICT(student_id, d) DO UPDATE SET value = excluded.value`).bind(...part.flatMap((s) => [s.id, d, s.value])).run();
+  }
 }
 
 // ---------- routes ----------
@@ -554,8 +588,8 @@ async function route(req: Request, env: Env): Promise<Response> {
       // keep the highest seen for everything that only ever goes up; the streak is taken as sent.
       const sent = cleanProgress(body.progress);
       const had = parseProgress((await env.DB.prepare('SELECT progress FROM students WHERE id = ?').bind(student.id).first<{ progress: string }>())?.progress ?? '');
-      const up = (k: keyof Progress) => Math.max(sent?.[k] ?? 0, had?.[k] ?? 0);
-      const progress = sent && had ? { lessons: up('lessons'), words: up('words'), cards: up('cards'), badges: up('badges'), level: up('level'), streak: sent.streak } : sent ?? had;
+      const up = (k: 'lessons' | 'words' | 'cards' | 'badges' | 'level') => Math.max(sent?.[k] ?? 0, had?.[k] ?? 0);
+      const progress = sent && had ? { lessons: up('lessons'), words: up('words'), cards: up('cards'), badges: up('badges'), level: up('level'), streak: sent.streak, passed: [...new Set([...(had.passed ?? []), ...(sent.passed ?? [])])].slice(0, 40) } : sent ?? had;
       await env.DB.prepare('UPDATE students SET avatar = ?, progress = ?, seen = ? WHERE id = ?').bind(cleanAvatar(body.avatar) || student.avatar, progress ? JSON.stringify(progress) : '', now(), student.id).run();
     }
     return json({ name: student.name, class: { code: cls.code, name: cls.name }, portfolio: await settle(env, student, cls) });

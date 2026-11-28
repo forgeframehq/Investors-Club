@@ -17,7 +17,7 @@ export function TeacherBar({ back, max = 720 }: { back?: boolean; max?: number }
   const { teacher } = useStore();
   const narrow = useWindowDimensions().width < 520; // on a phone the button is just its icon, so the title fits
   return (
-    <View style={{ backgroundColor: C.text, paddingTop: insets.top }}>
+    <View style={{ backgroundColor: C.dark, paddingTop: insets.top }}>
       <Row gap={10} style={{ paddingHorizontal: 16, minHeight: 58, width: '100%', maxWidth: max, alignSelf: 'center' }}>
         {back && <IconBtn name="chevron-back" label="Back to my classes" color="#FFFFFF" onPress={() => (router.canGoBack() ? router.back() : router.replace('/teacher'))} />}
         <BermudaFlag width={26} />

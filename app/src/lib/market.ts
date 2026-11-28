@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import { STOCKS } from '@/data/stocks';
 
-import { marketOpen, nextOpenText as nextOpenAt } from './provider';
+import { marketClock as clockAt, marketOpen, nextOpenText as nextOpenAt } from './provider';
 import { commit, db, saveMarket, settleSolo, snapshot } from './store';
 import type { HistoryPoint, IntraPoint, Markers, Quote } from './types';
 
@@ -22,6 +22,9 @@ export { marketOpen };
 export const isOpen = () => (db.net.open !== null ? db.net.open : marketOpen());
 /** A sentence saying whether the market is open, and if not, when it opens next (Bermuda time). */
 export const nextOpenText = () => nextOpenAt(new Date(), isOpen());
+
+/** Open or closed, and how long until that changes, in Bermuda time. */
+export const marketClock = () => clockAt(new Date(), isOpen());
 
 /** Fetches JSON with a time limit and turns failures into a sentence a child can read. */
 export async function getJson(url: string, init?: RequestInit, ms = 12000): Promise<any> {

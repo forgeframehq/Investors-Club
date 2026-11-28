@@ -295,7 +295,10 @@ export function finishRound() {
 export const cardsKnown = () => TERMS.filter((t) => (db.learned.cards[t.id] ?? 0) >= CARD_KNOWN).length;
 const lessonsPassed = () => LESSONS.filter((l) => (db.learned.lessons[l.id] ?? 0) >= l.quiz.length).length;
 /** What this student has learned, as the class server and the teacher view show it. */
-export const progress = (): Progress => ({ lessons: lessonsPassed(), words: db.learned.terms.length, cards: cardsKnown(), badges: badges().filter((b) => b.earned).length, level: level().number, streak: streak() });
+export const progress = (): Progress => ({
+  lessons: lessonsPassed(), words: db.learned.terms.length, cards: cardsKnown(), badges: badges().filter((b) => b.earned).length, level: level().number, streak: streak(),
+  passed: [...LESSONS.filter((l) => (db.learned.lessons[l.id] ?? -1) >= l.quiz.length).map((l) => l.id), ...LEVELS.filter((x) => x.n < 5 && recapPassed(x.n)).map((x) => recapId(x.n))],
+});
 
 // ---------- daily missions ----------
 

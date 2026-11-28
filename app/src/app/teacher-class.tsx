@@ -4,12 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, useWindowDimensions, View } from 'react-native';
 
 import { deleteClass, removeStudent, resetPin, restartClass, teacherClass, updateClass, type TeacherClassView } from '@/lib/classroom';
-import { ago, fmtDate, fmtShares, money } from '@/lib/format';
+import { ago, fmtDate, fmtShares, money, signedMoney, fmtDayKey } from '@/lib/format';
 import { nextOpenText } from '@/lib/market';
 import { stock, useStore } from '@/lib/store';
 import type { StudentDetail, Trade } from '@/lib/types';
 import { Emblem } from '@/ui/art';
 import { Avatar } from '@/ui/avatar';
+import { LESSONS, LEVELS } from '@/data/lessons';
+import { PriceChart } from '@/ui/chart';
+import { MarketClock } from '@/ui/clock';
 import { reasonLabel } from '@/ui/coach';
 import { Btn, C, Card, Chip, Delta, Divider, Empty, Icon, Page, Row, Stat, Tile, Txt } from '@/ui/kit';
 import { confirm, menu, prompt, toast } from '@/ui/overlay';
@@ -53,19 +56,28 @@ export default function TeacherClass() {
   // On a laptop the students are a table, one row each; on a phone they are cards.
   const wide = useWindowDimensions().width >= 1000;
 
-  const refresh = useCallback(async () => {
+  const [at, setAt] = useState(0);
+  // `quiet` is the background refresh: no spinner, and a failed attempt keeps what is on screen.
+  const refresh = useCallback(async (quiet = false) => {
     if (!teacher || !code) return;
-    setBusy(true);
+    if (!quiet) setBusy(true);
     try {
       setCls(await teacherClass(code));
+      setAt(Date.now());
       setError('');
     } catch (e) {
-      setError((e as Error).message);
+      if (!quiet) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (!quiet) setBusy(false);
     }
   }, [teacher, code]);
   useEffect(() => { refresh(); }, [refresh]);
+  // Stay in step with the students: fetch again every 30 seconds while this screen is open.
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => { refresh(true); tick((n) => n + 1); }, 30_000);
+    return () => clearInterval(timer);
+  }, [refresh]);
 
   const all = useMemo(() => cls?.students ?? [], [cls]);
   const students = useMemo(() => {
@@ -136,6 +148,8 @@ export default function TeacherClass() {
   }
 
   const traded = all.filter((s) => s.trades > 0).length;
+  // Level 1 is what unlocks buying, so it is the number a teacher most needs at the start.
+  const level1 = all.filter((x) => LESSONS.filter((l) => l.level === 1).every((l) => x.progress?.passed?.includes(l.id))).length;
   const average = all.length ? all.reduce((sum, s) => sum + s.gainPct, 0) / all.length : 0;
   const held = new Map<string, number>();
   for (const s of all) for (const h of s.holdings) held.set(h.symbol, (held.get(h.symbol) ?? 0) + 1);
@@ -146,32 +160,90 @@ export default function TeacherClass() {
   const learned = all.filter((s) => s.progress);
   const mean = (pickNumber: (s: StudentDetail) => number) => (learned.length ? (learned.reduce((sum, s) => sum + pickNumber(s), 0) / learned.length).toFixed(1) : '-');
 
+  /** A student's money by group, biggest first, with cash: "Tech 40%, Food & Drink 15%, Cash 45%". */
+  const mixOf = (s: StudentDetail) => {
+    const by = new Map<string, number>();
+    for (const h of s.holdings) by.set(stock(h.symbol).sector, (by.get(stock(h.symbol).sector) ?? 0) + (h.price ? h.shares * h.price : h.cost));
+    const parts = [...by.entries()].sort((a, b) => b[1] - a[1]).map(([name, v]) => `${name} ${Math.round((v / s.value) * 100)}%`);
+    return [...parts, `Cash ${Math.round((s.cash / s.value) * 100)}%`].join(' · ');
+  };
   const details = (s: StudentDetail) => (
     <>
       <Divider />
-      <Row gap={24}>
+      <Row gap={24} style={{ flexWrap: 'wrap' }}>
+        <Stat title="Total value" value={money(s.value)} />
         <Stat title="Cash" value={money(s.cash)} />
         <Stat title="In stocks" value={money(s.value - s.cash)} />
+        <View style={{ gap: 4 }}>
+          <Txt size={13} color={C.muted}>Today</Txt>
+          <Txt size={16} bold color={Math.abs(s.today ?? 0) < 0.005 ? C.muted : (s.today ?? 0) > 0 ? C.good : C.bad}>{signedMoney(s.today ?? 0)}</Txt>
+        </View>
       </Row>
       <Txt size={13} color={C.muted}>{s.seen ? `Last active ${ago(new Date(s.seen).getTime())}` : 'Has not opened the app since joining'}</Txt>
+
+      {(s.history?.length ?? 0) > 1 && (
+        <>
+          <Txt size={14} bold>Value over time</Txt>
+          <PriceChart values={s.history!.map((x) => x.v)} labels={s.history!.map((x) => fmtDayKey(x.d))} height={140} color={C.accent} />
+        </>
+      )}
 
       <Txt size={14} bold>Learning</Txt>
       {s.progress
         ? <Row gap={8} style={{ alignItems: 'flex-start' }}><Emblem level={s.progress.level} size={34} /><Txt size={13} color={C.muted} style={{ flex: 1 }}>Rank {s.progress.level} · {s.progress.lessons} {s.progress.lessons === 1 ? 'lesson' : 'lessons'} passed · {s.progress.words} words read · {s.progress.cards} flashcards known · {s.progress.badges} {s.progress.badges === 1 ? 'badge' : 'badges'} · {s.progress.streak ?? 0}-day learning streak</Txt></Row>
         : <Txt size={13} color={C.muted}>Nothing reported yet.</Txt>}
 
+      {s.progress?.passed && (s.progress.passed.length > 0 || s.progress.lessons === 0) ? LEVELS.map((lv) => {
+        const list = LESSONS.filter((l) => l.level === lv.n);
+        const done = list.filter((l) => s.progress!.passed!.includes(l.id));
+        const recap = lv.n < 5 && s.progress!.passed!.includes(`recap-${lv.n}`);
+        return (
+          <View key={lv.n} style={{ gap: 2 }}>
+            <Row gap={8}>
+              <Icon name={done.length === list.length ? 'checkmark-circle' : 'ellipse-outline'} size={16} color={done.length === list.length ? C.good : C.muted} />
+              <Txt size={13} style={{ flex: 1 }}>{lv.n < 5 ? `Level ${lv.n}: ${lv.title}` : lv.title}</Txt>
+              <Txt size={13} color={C.muted}>{done.length} of {list.length}{recap ? ' · recap passed' : ''}</Txt>
+            </Row>
+            {done.length > 0 && done.length < list.length && <Txt size={12} color={C.muted} style={{ marginLeft: 24 }}>Still to pass: {list.filter((l) => !done.includes(l)).map((l) => l.title).join(', ')}</Txt>}
+          </View>
+        );
+      }) : s.progress ? <Txt size={12} color={C.muted}>Which lessons they passed shows here once they next open the app.</Txt> : null}
+      {s.progress?.passed && (s.progress.passed.length > 0 || s.progress.lessons === 0) && !LESSONS.filter((l) => l.level === 1).every((l) => s.progress!.passed!.includes(l.id)) && s.trades === 0 && <Txt size={12} color={C.warm}>Cannot buy yet: buying unlocks when Level 1 is passed.</Txt>}
+
       <Txt size={14} bold>Check before you buy</Txt>
       <Txt size={13} color={C.muted}>{s.buys ? `Did the check on ${s.checked ?? 0} of ${s.buys} ${s.buys === 1 ? 'buy' : 'buys'}. It is required for the first three, then optional.` : 'No buys yet.'}</Txt>
 
+      <Txt size={14} bold>Allocation</Txt>
+      <Txt size={13} color={C.muted}>{mixOf(s)}</Txt>
+
       <Txt size={14} bold>Holdings</Txt>
       {s.holdings.length === 0 && <Txt size={13} color={C.muted}>All in cash.</Txt>}
-      {s.holdings.map((h) => (
-        <Row key={h.symbol} gap={10}>
-          <Tile symbol={h.symbol} size={30} />
-          <Txt size={14} style={{ flex: 1 }} lines={1}>{stock(h.symbol).name}</Txt>
-          <Txt size={13} color={C.muted}>{fmtShares(h.shares)} · paid {money(h.cost)}</Txt>
-        </Row>
-      ))}
+      {s.holdings.map((h) => {
+        const worth = h.price ? h.shares * h.price : h.cost;
+        const move = h.price && h.prev ? h.shares * (h.price - h.prev) : 0;
+        return (
+          <Row key={h.symbol} gap={10}>
+            <Tile symbol={h.symbol} size={30} />
+            <View style={{ flex: 1 }}>
+              <Txt size={14} lines={1}>{stock(h.symbol).name}</Txt>
+              <Txt size={12} color={C.muted}>{fmtShares(h.shares)} · paid {money(h.cost)} · {Math.round((worth / s.value) * 100)}% of portfolio</Txt>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Txt size={14} bold>{money(worth)}</Txt>
+              <Txt size={12} color={Math.abs(move) < 0.005 ? C.muted : move > 0 ? C.good : C.bad}>Today {signedMoney(move)}</Txt>
+            </View>
+          </Row>
+        );
+      })}
+
+      {(s.orders?.length ?? 0) > 0 && (
+        <>
+          <Txt size={14} bold>Waiting orders</Txt>
+          {s.orders!.map((o) => (
+            <Txt key={o.id} size={13} color={C.muted}>{fmtDate(o.at)} · wants to {o.side} {o.dollars ? money(o.dollars, false) : fmtShares(o.shares ?? 0)} of {o.symbol} when the market opens{o.why ? ` · reason: ${reasonLabel(o.why)}` : ''}</Txt>
+          ))}
+        </>
+      )}
 
       <Txt size={14} bold>Recent trades</Txt>
       {s.recent.length === 0 && <Txt size={13} color={C.muted}>No trades yet.</Txt>}
@@ -197,7 +269,10 @@ export default function TeacherClass() {
             <Txt size={26} bold lines={1}>{cls?.name ?? 'Class'}</Txt>
             <Txt size={14} color={C.muted}>{all.length} {all.length === 1 ? 'student' : 'students'} · join code {code}{cls?.paused ? ' · trading paused' : ''}</Txt>
           </View>
-          <Btn title="Refresh" kind="text" icon="refresh" busy={busy} onPress={refresh} />
+          <View style={{ alignItems: 'flex-end' }}>
+            <Btn title="Refresh" kind="text" icon="refresh" busy={busy} onPress={() => refresh()} />
+            {!!at && <Txt size={11} color={C.muted}>Updates itself · {ago(at)}</Txt>}
+          </View>
         </Row>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {TABS.map((x) => <Chip key={x} title={x} selected={tab === x} onPress={() => setTab(x)} />)}
@@ -206,6 +281,7 @@ export default function TeacherClass() {
 
         {tab === 'Overview' && (
           <>
+            <MarketClock card />
             <Card>
               <Txt size={13} color={C.muted}>Class code</Txt>
               <Row>
@@ -222,6 +298,7 @@ export default function TeacherClass() {
                   <Row gap={24} style={{ flexWrap: 'wrap' }}>
                     <Stat title="Students" value={String(all.length)} />
                     <Stat title="Have traded" value={`${traded} of ${all.length}`} />
+                    <Stat title="Finished Level 1" value={`${level1} of ${all.length}`} />
                     <View style={{ gap: 4 }}>
                       <Txt size={13} color={C.muted}>Average change</Txt>
                       <Delta value={average} size={16} />
@@ -311,6 +388,7 @@ export default function TeacherClass() {
                     <View style={{ alignItems: 'flex-end', gap: 3 }}>
                       <Txt size={16} bold>{money(s.value)}</Txt>
                       <Delta value={s.gainPct} size={13} />
+                      <Txt size={11} color={C.muted}>Today {signedMoney(s.today ?? 0)}</Txt>
                     </View>
                   )}
                   <Icon name={open === s.id ? 'chevron-up' : 'chevron-down'} size={18} color={C.muted} />

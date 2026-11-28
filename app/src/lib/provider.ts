@@ -128,3 +128,60 @@ export function nextOpenText(now = new Date(), open = marketOpen(now)): string {
   }
   return 'The market is closed.';
 }
+
+/** Minutes since midnight in New York, and the New York date. */
+function newYorkNow(now: Date): { minutes: number; day: string } {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { minutes: (get('hour') % 24) * 60 + get('minute'), day: newYorkDay(now) };
+}
+/** "3h 12m", "1d 21h" or "8m": a length of time in the two biggest units that matter. */
+function span(ms: number): string {
+  const m = Math.max(1, Math.round(ms / 60000));
+  if (m >= 1440) return `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60)}h`;
+  if (m >= 60) return `${Math.floor(m / 60)}h ${m % 60}m`;
+  return `${m}m`;
+}
+let nextOpen = { from: 0, at: 0 };
+/** When the market next opens (ms), found in ten-minute steps for up to eight days and remembered until then. */
+function nextOpenAt(now: Date): number {
+  const t0 = now.getTime();
+  if (t0 >= nextOpen.from && t0 < nextOpen.at) return nextOpen.at;
+  for (let t = Math.ceil(t0 / 600000) * 600000, end = t0 + 8 * 86400000; t < end; t += 600000) {
+    if (marketOpen(new Date(t))) { nextOpen = { from: t0, at: t }; return t; }
+  }
+  return 0;
+}
+
+export interface MarketClock {
+  open: boolean;
+  /** The main line, like "Market open" or "Market closed". */
+  title: string;
+  /** What comes next, like "closes in 3h 12m (5:00 pm)" or "opens Monday 10:30 am, in 1d 21h". Bermuda time. */
+  detail: string;
+  /** True in the last 15 minutes of the day: an order placed after the close waits for the next open. */
+  soon: boolean;
+}
+/**
+ * The market clock: open or closed, and how long until that changes. `open` is whether trading is open now; it
+ * differs from the real clock only in tests, and then there is no countdown.
+ */
+export function marketClock(now = new Date(), open = marketOpen(now)): MarketClock {
+  const real = marketOpen(now);
+  if (open !== real) return { open, title: open ? 'Market open' : 'Market closed', detail: '', soon: false };
+  try {
+    if (open) {
+      const { minutes, day } = newYorkNow(now);
+      const early = EARLY.has(day);
+      const left = (early ? 780 : 960) - minutes;
+      return { open, title: left <= 15 ? 'Market closing soon' : 'Market open', detail: `closes in ${span(left * 60000)} (${early ? '2:00 pm' : '5:00 pm'})`, soon: left <= 15 };
+    }
+    const at = nextOpenAt(now);
+    if (!at) return { open, title: 'Market closed', detail: '', soon: false };
+    const days = Math.round((Date.parse(newYorkDay(new Date(at))) - Date.parse(newYorkDay(now))) / 86400000);
+    const day = days === 0 ? 'today' : days === 1 ? 'tomorrow' : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(`${newYorkDay(new Date(at))}T12:00:00Z`).getUTCDay()];
+    return { open, title: 'Market closed', detail: `opens ${day} 10:30 am, in ${span(at - now.getTime())}`, soon: false };
+  } catch {
+    return { open, title: open ? 'Market open' : 'Market closed', detail: '', soon: false };
+  }
+}

@@ -177,3 +177,14 @@ and Twelve Data calls, including real logos, are not covered by it. Check those 
   reason picked is saved with the trade (`why`) and shown to the teacher with how often the check was done.
 - Passing the last lesson unlocks a Company meter (P/E) and a Crowd meter (RSI, `lib/meters.ts`) on every stock.
 - One learning streak: a lesson, a flashcard round or a three-question review (`/lesson/review`) counts for a day.
+
+## Teacher view in step with the student app (added 2026-11-28)
+
+- The class screen fetches again every 30 seconds while open. Per student it shows total value, cash, today's
+  gain or loss, allocation by group, each holding's value and move today, waiting orders, which lessons and level
+  recaps are passed (`progress.passed`), and value over time.
+- Value over time comes from the `daily` table: one value per student per New York day, saved at most every 20
+  minutes when anyone opens the class or leaderboard, and by the timer job for classes nobody opened.
+- A teacher only sees students who joined their class. A practice portfolio never leaves the student's device.
+- The market clock (`marketClock` in `lib/provider.ts`, `ui/clock.tsx`) shows "closes in 3h 12m (5:00 pm)" or
+  "opens Monday 10:30 am, in 1d 21h" on the home screen, the buy sheet and the teacher's class.
