@@ -135,7 +135,8 @@ function LessonBody({ id, first }: { id: string; first: boolean }) {
           {!review && !recap && !recapNext && passed && following && <Btn title={`Next lesson: ${following.title}`} onPress={() => router.replace(`/lesson/${following.id}`)} />}
           {recap && passed && afterRecap && <Btn title={`Start Level ${afterRecap.level}: ${afterRecap.title}`} onPress={() => router.replace(`/lesson/${afterRecap.id}`)} />}
           {recap && !passed && <Btn title="Try again" onPress={() => router.replace(`/lesson/${l.id}?again=${Date.now()}`)} />}
-          <Btn title="Back to lessons" kind={review || (passed && !following && !afterRecap) ? 'primary' : 'ghost'} onPress={() => (router.canGoBack() ? router.back() : router.replace('/learn'))} />
+          {/* Says where it goes: the lesson that opens after sign-up sits on top of the home screen, not the lessons list. */}
+          <Btn title={first ? 'Go to the app' : 'Back to lessons'} kind={review || (passed && !following && !afterRecap) ? 'primary' : 'ghost'} onPress={() => router.replace(first ? '/' : '/learn')} />
         </>
       )}
     </Page>
